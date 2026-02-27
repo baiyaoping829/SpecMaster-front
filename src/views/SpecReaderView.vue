@@ -199,6 +199,15 @@
                       </div>
                       <div class="clause-actions">
                         <el-button 
+                          size="small" 
+                          type="success" 
+                          @click="toggleExplanation(clause)"
+                          class="explanation-btn"
+                        >
+                          <el-icon><Document /></el-icon>
+                          {{ clause.showExplanation ? '隐藏说明' : '条文说明' }}
+                        </el-button>
+                        <el-button 
                           v-if="readerOptions.showTranslation"
                           size="small" 
                           type="primary" 
@@ -217,6 +226,178 @@
                           <el-icon><Search /></el-icon>
                           相似条款
                         </el-button>
+                        <el-button 
+                          size="small" 
+                          type="warning" 
+                          @click="toggleComments(clause)"
+                          class="comment-btn"
+                        >
+                          <el-icon><ChatLineRound /></el-icon>
+                          {{ clause.showComments ? '隐藏批注' : '批注' }}
+                        </el-button>
+                      </div>
+                      
+                      <!-- 条文说明区域 -->
+                      <div v-if="clause.showExplanation" class="clause-explanation">
+                        <h4>条文说明</h4>
+                        <div class="explanation-content">
+                          {{ clause.explanation || '暂无条文说明' }}
+                        </div>
+                      </div>
+                      
+                      <!-- 翻译区域 -->
+                      <div v-if="clause.isTranslated && clause.showTranslations" class="clause-translations">
+                        <h4>翻译结果</h4>
+                        <div class="translations-list">
+                          <!-- qwen 翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.qwen.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">Qwen</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'qwen')"
+                                :disabled="clause.translations.qwen.isAdopted"
+                              >
+                                {{ clause.translations.qwen.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <div class="translation-content">{{ clause.translations.qwen.content || '' }}</div>
+                          </div>
+                          
+                          <!-- doubao 翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.doubao.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">Doubao</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'doubao')"
+                                :disabled="clause.translations.doubao.isAdopted"
+                              >
+                                {{ clause.translations.doubao.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <div class="translation-content">{{ clause.translations.doubao.content || '' }}</div>
+                          </div>
+                          
+                          <!-- deepseek 翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.deepseek.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">DeepSeek</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'deepseek')"
+                                :disabled="clause.translations.deepseek.isAdopted"
+                              >
+                                {{ clause.translations.deepseek.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <div class="translation-content">{{ clause.translations.deepseek.content || '' }}</div>
+                          </div>
+                          
+                          <!-- 人工翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.custom.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">人工翻译</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'custom')"
+                                :disabled="clause.translations.custom.isAdopted"
+                              >
+                                {{ clause.translations.custom.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <el-input
+                              v-model="clause.manualTranslation"
+                              type="textarea"
+                              placeholder="请输入人工翻译"
+                              @input="updateManualTranslation(clause)"
+                            />
+                            <div class="translation-content">{{ clause.translations.custom.content || '' }}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- 批注区域 -->
+                      <div v-if="clause.showComments" class="clause-comments">
+                        <h4>用户批注</h4>
+                        <!-- 添加批注 -->
+                        <div class="add-comment">
+                          <el-input
+                            v-model="newCommentContent"
+                            type="textarea"
+                            placeholder="请输入批注内容"
+                            :rows="3"
+                          />
+                          <div class="comment-actions">
+                            <el-button 
+                              size="small" 
+                              type="primary" 
+                              @click="addComment(clause)"
+                              :disabled="!newCommentContent.trim()"
+                            >
+                              添加批注
+                            </el-button>
+                          </div>
+                        </div>
+                        
+                        <!-- 批注列表 -->
+                        <div class="comments-list" v-if="clause.comments && clause.comments.length > 0">
+                          <div 
+                            v-for="comment in clause.comments" 
+                            :key="comment.id"
+                            class="comment-item"
+                          >
+                            <!-- 编辑模式 -->
+                            <div v-if="clause.editingComment && clause.editingComment.id === comment.id" class="comment-edit">
+                              <el-input
+                                v-model="clause.editingComment.content"
+                                type="textarea"
+                                :rows="3"
+                              />
+                              <div class="comment-edit-actions">
+                                <el-button 
+                                  size="small" 
+                                  type="primary" 
+                                  @click="saveComment(clause)"
+                                >
+                                  保存
+                                </el-button>
+                                <el-button 
+                                  size="small" 
+                                  @click="cancelEditComment(clause)"
+                                >
+                                  取消
+                                </el-button>
+                              </div>
+                            </div>
+                            <!-- 查看模式 -->
+                            <div v-else class="comment-content">
+                              <div class="comment-header">
+                                <span class="comment-author">{{ comment.author }}</span>
+                                <span class="comment-time">{{ comment.timestamp }}</span>
+                              </div>
+                              <div class="comment-text">{{ comment.content }}</div>
+                              <div class="comment-actions">
+                                <el-button 
+                                  size="small" 
+                                  @click="editComment(clause, comment)"
+                                >
+                                  编辑
+                                </el-button>
+                                <el-button 
+                                  size="small" 
+                                  type="danger" 
+                                  @click="deleteComment(clause, comment.id)"
+                                >
+                                  删除
+                                </el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-comments">
+                          暂无批注，点击添加批注按钮开始添加
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -251,6 +432,15 @@
                       </div>
                       <div class="clause-actions">
                         <el-button 
+                          size="small" 
+                          type="success" 
+                          @click="toggleExplanation(clause)"
+                          class="explanation-btn"
+                        >
+                          <el-icon><Document /></el-icon>
+                          {{ clause.showExplanation ? '隐藏说明' : '条文说明' }}
+                        </el-button>
+                        <el-button 
                           v-if="readerOptions.showTranslation"
                           size="small" 
                           type="primary" 
@@ -269,6 +459,178 @@
                           <el-icon><Search /></el-icon>
                           相似条款
                         </el-button>
+                        <el-button 
+                          size="small" 
+                          type="warning" 
+                          @click="toggleComments(clause)"
+                          class="comment-btn"
+                        >
+                          <el-icon><ChatLineRound /></el-icon>
+                          {{ clause.showComments ? '隐藏批注' : '批注' }}
+                        </el-button>
+                      </div>
+                      
+                      <!-- 条文说明区域 -->
+                      <div v-if="clause.showExplanation" class="clause-explanation">
+                        <h4>条文说明</h4>
+                        <div class="explanation-content">
+                          {{ clause.explanation || '暂无条文说明' }}
+                        </div>
+                      </div>
+                      
+                      <!-- 翻译区域 -->
+                      <div v-if="clause.isTranslated && clause.showTranslations" class="clause-translations">
+                        <h4>翻译结果</h4>
+                        <div class="translations-list">
+                          <!-- qwen 翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.qwen.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">Qwen</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'qwen')"
+                                :disabled="clause.translations.qwen.isAdopted"
+                              >
+                                {{ clause.translations.qwen.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <div class="translation-content">{{ clause.translations.qwen.content || '' }}</div>
+                          </div>
+                          
+                          <!-- doubao 翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.doubao.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">Doubao</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'doubao')"
+                                :disabled="clause.translations.doubao.isAdopted"
+                              >
+                                {{ clause.translations.doubao.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <div class="translation-content">{{ clause.translations.doubao.content || '' }}</div>
+                          </div>
+                          
+                          <!-- deepseek 翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.deepseek.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">DeepSeek</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'deepseek')"
+                                :disabled="clause.translations.deepseek.isAdopted"
+                              >
+                                {{ clause.translations.deepseek.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <div class="translation-content">{{ clause.translations.deepseek.content || '' }}</div>
+                          </div>
+                          
+                          <!-- 人工翻译 -->
+                          <div class="translation-item" :class="{ 'adopted': clause.translations.custom.isAdopted }">
+                            <div class="translation-header">
+                              <span class="translation-model">人工翻译</span>
+                              <el-button 
+                                size="small" 
+                                @click="adoptTranslation(clause, 'custom')"
+                                :disabled="clause.translations.custom.isAdopted"
+                              >
+                                {{ clause.translations.custom.isAdopted ? '已采纳' : '采纳' }}
+                              </el-button>
+                            </div>
+                            <el-input
+                              v-model="clause.manualTranslation"
+                              type="textarea"
+                              placeholder="请输入人工翻译"
+                              @input="updateManualTranslation(clause)"
+                            />
+                            <div class="translation-content">{{ clause.translations.custom.content || '' }}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- 批注区域 -->
+                      <div v-if="clause.showComments" class="clause-comments">
+                        <h4>用户批注</h4>
+                        <!-- 添加批注 -->
+                        <div class="add-comment">
+                          <el-input
+                            v-model="newCommentContent"
+                            type="textarea"
+                            placeholder="请输入批注内容"
+                            :rows="3"
+                          />
+                          <div class="comment-actions">
+                            <el-button 
+                              size="small" 
+                              type="primary" 
+                              @click="addComment(clause)"
+                              :disabled="!newCommentContent.trim()"
+                            >
+                              添加批注
+                            </el-button>
+                          </div>
+                        </div>
+                        
+                        <!-- 批注列表 -->
+                        <div class="comments-list" v-if="clause.comments && clause.comments.length > 0">
+                          <div 
+                            v-for="comment in clause.comments" 
+                            :key="comment.id"
+                            class="comment-item"
+                          >
+                            <!-- 编辑模式 -->
+                            <div v-if="clause.editingComment && clause.editingComment.id === comment.id" class="comment-edit">
+                              <el-input
+                                v-model="clause.editingComment.content"
+                                type="textarea"
+                                :rows="3"
+                              />
+                              <div class="comment-edit-actions">
+                                <el-button 
+                                  size="small" 
+                                  type="primary" 
+                                  @click="saveComment(clause)"
+                                >
+                                  保存
+                                </el-button>
+                                <el-button 
+                                  size="small" 
+                                  @click="cancelEditComment(clause)"
+                                >
+                                  取消
+                                </el-button>
+                              </div>
+                            </div>
+                            <!-- 查看模式 -->
+                            <div v-else class="comment-content">
+                              <div class="comment-header">
+                                <span class="comment-author">{{ comment.author }}</span>
+                                <span class="comment-time">{{ comment.timestamp }}</span>
+                              </div>
+                              <div class="comment-text">{{ comment.content }}</div>
+                              <div class="comment-actions">
+                                <el-button 
+                                  size="small" 
+                                  @click="editComment(clause, comment)"
+                                >
+                                  编辑
+                                </el-button>
+                                <el-button 
+                                  size="small" 
+                                  type="danger" 
+                                  @click="deleteComment(clause, comment.id)"
+                                >
+                                  删除
+                                </el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-comments">
+                          暂无批注，点击添加批注按钮开始添加
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -327,7 +689,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useReaderStore } from '../store/modules/reader'
-import { ArrowUp, ArrowDown, FolderAdd, Search, DataAnalysis, Connection, Star, StarFilled, User } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, FolderAdd, Search, DataAnalysis, Connection, Star, StarFilled, User, Document, ChatLineRound } from '@element-plus/icons-vue'
 
 // 响应式数据
 const knowledgeBaseForm = reactive({
@@ -387,6 +749,9 @@ const showSummary = ref(false)
 const showMindMap = ref(false)
 const showKnowledgeGraph = ref(false)
 
+// 新批注内容
+const newCommentContent = ref('')
+
 // 翻译模型类型
 type TranslationModel = 'qwen' | 'doubao' | 'deepseek' | 'custom';
 
@@ -445,7 +810,12 @@ interface Clause {
   comments?: Comment[]; // 用户批注
   hasComments?: boolean; // 是否有批注
   showExplanation?: boolean; // 是否显示条文说明
+  explanation?: string; // 条文说明
   showComments?: boolean; // 是否显示批注
+  showTranslations?: boolean; // 是否显示翻译
+  manualTranslation?: string; // 人工翻译
+  // 编辑中的批注
+  editingComment?: Comment | null;
 }
 
 // 计算属性生成知识基础树结构
@@ -666,23 +1036,243 @@ const increasePopularity = (clause: Clause) => {
   }
 };
 
+// 切换条文说明显示状态
+const toggleExplanation = (clause: Clause) => {
+  clause.showExplanation = !clause.showExplanation;
+  // 如果是第一次显示说明，生成模拟的条文说明
+  if (clause.showExplanation && !clause.explanation) {
+    clause.explanation = `本条款是${clause.content}的条文说明，详细解释了该条款的背景、适用范围和实施要点。`;
+  }
+};
+
 // 翻译条款
 const translateClause = (clause: Clause) => {
-  // 模拟翻译过程
-  console.log('翻译条款:', clause.id, clause.content);
-  clause.isTranslated = true;
+  // 检查是否已经有被采纳的翻译
+  const hasAdoptedTranslation = Object.values(clause.translations).some(t => t.isAdopted && t.content);
+  
+  // 根据目标语言生成翻译结果
+  const targetLanguage = readerOptions.translateLanguage;
+  
+  // 如果是首次翻译，生成新的翻译结果
+  if (!clause.isTranslated || !hasAdoptedTranslation) {
+    // 模拟多模型翻译过程
+    console.log('翻译条款:', clause.id, clause.content);
+    clause.isTranslated = true;
+    clause.showTranslations = true;
+    
+    // 模拟 qwen 翻译
+    if (targetLanguage === 'en') {
+      clause.translations.qwen.content = `This is the Qwen translation of clause ${clause.id}`;
+    } else {
+      clause.translations.qwen.content = `这是条款 ${clause.id} 的 Qwen 翻译`;
+    }
+    
+    // 模拟 doubao 翻译
+    if (targetLanguage === 'en') {
+      clause.translations.doubao.content = `This is the Doubao translation of clause ${clause.id}`;
+    } else {
+      clause.translations.doubao.content = `这是条款 ${clause.id} 的 Doubao 翻译`;
+    }
+    
+    // 模拟 deepseek 翻译
+    if (targetLanguage === 'en') {
+      clause.translations.deepseek.content = `This is the DeepSeek translation of clause ${clause.id}`;
+    } else {
+      clause.translations.deepseek.content = `这是条款 ${clause.id} 的 DeepSeek 翻译`;
+    }
+  } else {
+    // 已有被采纳的翻译，点击重新翻译时生成新的翻译结果
+    console.log('重新翻译条款:', clause.id, clause.content);
+    clause.showTranslations = true;
+    
+    // 模拟 qwen 翻译
+    if (targetLanguage === 'en') {
+      clause.translations.qwen.content = `This is the updated Qwen translation of clause ${clause.id}`;
+    } else {
+      clause.translations.qwen.content = `这是条款 ${clause.id} 的更新 Qwen 翻译`;
+    }
+    
+    // 模拟 doubao 翻译
+    if (targetLanguage === 'en') {
+      clause.translations.doubao.content = `This is the updated Doubao translation of clause ${clause.id}`;
+    } else {
+      clause.translations.doubao.content = `这是条款 ${clause.id} 的更新 Doubao 翻译`;
+    }
+    
+    // 模拟 deepseek 翻译
+    if (targetLanguage === 'en') {
+      clause.translations.deepseek.content = `This is the updated DeepSeek translation of clause ${clause.id}`;
+    } else {
+      clause.translations.deepseek.content = `这是条款 ${clause.id} 的更新 DeepSeek 翻译`;
+    }
+    
+    // 重置所有翻译的采纳状态
+    Object.keys(clause.translations).forEach(key => {
+      clause.translations[key as TranslationModel].isAdopted = false;
+    });
+  }
+};
+
+// 采纳翻译
+const adoptTranslation = (clause: Clause, model: TranslationModel) => {
+  // 重置所有翻译的采纳状态
+  Object.keys(clause.translations).forEach(key => {
+    clause.translations[key as TranslationModel].isAdopted = false;
+  });
+  
+  // 采纳选中的翻译
+  clause.translations[model].isAdopted = true;
+  
+  // 保存被采纳的翻译到数据库（模拟）
+  saveAdoptedTranslation(clause, model);
+  
+  // 清除其他翻译结果
+  Object.keys(clause.translations).forEach(key => {
+    const translationModel = key as TranslationModel;
+    if (translationModel !== model) {
+      clause.translations[translationModel].content = '';
+    }
+  });
+  
+  // 显示成功消息
+  ElMessage.success(`已采纳 ${model === 'custom' ? '人工' : model} 翻译并保存到数据库`);
+};
+
+// 保存被采纳的翻译到数据库（模拟）
+const saveAdoptedTranslation = (clause: Clause, model: TranslationModel) => {
+  // 模拟保存到数据库的过程
+  console.log('保存翻译到数据库:', {
+    clauseId: clause.id,
+    model: model,
+    content: clause.translations[model].content
+  });
+  
+  // 实际应用中，这里应该调用 API 将翻译结果保存到数据库
+  // 例如：
+  // await api.saveTranslation({ clauseId: clause.id, model: model, content: clause.translations[model].content });
+};
+
+// 更新人工翻译
+const updateManualTranslation = (clause: Clause) => {
+  if (clause.manualTranslation) {
+    clause.translations.custom.content = clause.manualTranslation;
+  }
+};
+
+// 切换批注显示状态
+const toggleComments = (clause: Clause) => {
+  clause.showComments = !clause.showComments;
+  // 初始化批注数组
+  if (clause.showComments && !clause.comments) {
+    clause.comments = [];
+    clause.hasComments = false;
+  }
+};
+
+// 添加批注
+const addComment = (clause: Clause) => {
+  if (!newCommentContent.value.trim()) return;
+  
+  const newComment: Comment = {
+    id: `comment-${Date.now()}`,
+    content: newCommentContent.value.trim(),
+    author: '当前用户', // 实际应用中应该从登录状态获取
+    timestamp: new Date().toLocaleString()
+  };
+  
+  if (!clause.comments) {
+    clause.comments = [];
+  }
+  
+  clause.comments.push(newComment);
+  clause.hasComments = true;
+  newCommentContent.value = '';
+  
+  ElMessage.success('批注添加成功');
+};
+
+// 编辑批注
+const editComment = (clause: Clause, comment: Comment) => {
+  // 复制批注对象，避免直接修改原始数据
+  clause.editingComment = { ...comment };
+};
+
+// 保存编辑后的批注
+const saveComment = (clause: Clause) => {
+  if (!clause.editingComment) return;
+  
+  const commentIndex = clause.comments?.findIndex(c => c.id === clause.editingComment?.id);
+  if (commentIndex !== undefined && commentIndex !== -1) {
+    clause.comments![commentIndex] = {
+      ...clause.editingComment,
+      isEdited: true,
+      lastEdited: new Date().toLocaleString()
+    };
+    ElMessage.success('批注编辑成功');
+  }
+  
+  clause.editingComment = null;
+};
+
+// 取消编辑
+const cancelEditComment = (clause: Clause) => {
+  clause.editingComment = null;
+};
+
+// 删除批注
+const deleteComment = (clause: Clause, commentId: string) => {
+  if (!clause.comments) return;
+  
+  const commentIndex = clause.comments.findIndex(c => c.id === commentId);
+  if (commentIndex !== -1) {
+    clause.comments.splice(commentIndex, 1);
+    clause.hasComments = clause.comments.length > 0;
+    ElMessage.success('批注删除成功');
+  }
 };
 
 // 搜索相似条款
 const searchSimilarClauses = (clause: Clause) => {
-  // 打开相似条款检索页面
-  console.log('搜索相似条款:', clause.id, clause.content);
-  try {
-    const url = `/similar-clauses?clauseId=${clause.id}&clauseContent=${encodeURIComponent(clause.content)}`;
-    window.open(url, '_blank', 'width=1200,height=800');
-  } catch (error) {
-    console.error('打开页面失败:', error);
-    ElMessage.error('打开页面失败，请检查网络连接');
+  // 检查是否有多个条款被选择
+  console.log('当前选中的条款数量:', selectedClauses.value.size);
+  console.log('当前选中的条款ID:', Array.from(selectedClauses.value));
+  
+  if (selectedClauses.value.size > 1) {
+    // 打开批量相似条款检索页面，包含所有选择的条款
+    console.log('批量搜索相似条款:', Array.from(selectedClauses.value));
+    try {
+      // 构建包含所有选中条款内容的参数（只传递前5个条款，避免URL过长）
+      const selectedClausesList = specContent.value
+        .filter(c => selectedClauses.value.has(c.id))
+        .slice(0, 5); // 限制数量，避免URL过长
+      
+      const clauseIds = selectedClausesList.map(c => c.id).join(',');
+      const contents = selectedClausesList.map(c => encodeURIComponent(c.content)).join('|||');
+      
+      console.log('传递的条款ID:', clauseIds);
+      console.log('传递的条款数量:', selectedClausesList.length);
+      
+      // 构建URL，使用与 SimilarClausesView 期望一致的参数名
+      const url = `/similar-clauses?clauseId=${clauseIds}&content=${contents}`;
+      window.open(url, '_blank', 'width=1200,height=800');
+      
+      // 显示提示信息
+      ElMessage.success(`已为 ${selectedClausesList.length} 个选中条款启动相似条款检索`);
+    } catch (error) {
+      console.error('打开页面失败:', error);
+      ElMessage.error('打开页面失败，请检查网络连接');
+    }
+  } else {
+    // 只有当前条款被选择，打开单个条款的相似条款检索页面
+    console.log('搜索相似条款:', clause.id, clause.content);
+    try {
+      // 构建URL，使用与 SimilarClausesView 期望一致的参数名
+      const url = `/similar-clauses?clauseId=${clause.id}&content=${encodeURIComponent(clause.content)}`;
+      window.open(url, '_blank', 'width=1200,height=800');
+    } catch (error) {
+      console.error('打开页面失败:', error);
+      ElMessage.error('打开页面失败，请检查网络连接');
+    }
   }
 };
 
@@ -696,9 +1286,20 @@ const batchSearchSimilarClauses = () => {
   // 打开批量相似条款检索页面
   console.log('批量搜索相似条款:', Array.from(selectedClauses.value));
   try {
-    const clauseIds = Array.from(selectedClauses.value).join(',');
-    const url = `/similar-clauses?clauseIds=${clauseIds}`;
+    // 构建包含所有选中条款内容的参数（只传递前5个条款，避免URL过长）
+    const selectedClausesList = specContent.value
+      .filter(c => selectedClauses.value.has(c.id))
+      .slice(0, 5); // 限制数量，避免URL过长
+    
+    const clauseIds = selectedClausesList.map(c => c.id).join(',');
+    const contents = selectedClausesList.map(c => encodeURIComponent(c.content)).join('|||');
+    
+    // 构建URL，使用与 SimilarClausesView 期望一致的参数名
+    const url = `/similar-clauses?clauseId=${clauseIds}&content=${contents}`;
     window.open(url, '_blank', 'width=1200,height=800');
+    
+    // 显示提示信息
+    ElMessage.success(`已为 ${selectedClausesList.length} 个选中条款启动相似条款检索`);
   } catch (error) {
     console.error('打开页面失败:', error);
     ElMessage.error('打开页面失败，请检查网络连接');
@@ -765,7 +1366,25 @@ const selectTheme = (theme: any) => {
 
 
 const toggleTranslation = () => {
-  readerOptions.showTranslation = !readerOptions.showTranslation
+  readerOptions.showTranslation = !readerOptions.showTranslation;
+  
+  if (readerOptions.showTranslation) {
+    // 开启翻译时，对于已翻译的条款默认显示被采用的翻译结果
+    specContent.value.forEach(clause => {
+      if (clause.isTranslated) {
+        // 检查是否有被采纳的翻译
+        const hasAdoptedTranslation = Object.values(clause.translations).some(t => t.isAdopted && t.content);
+        if (hasAdoptedTranslation) {
+          clause.showTranslations = true;
+        }
+      }
+    });
+  } else {
+    // 关闭翻译时，清除所有条款的翻译显示
+    specContent.value.forEach(clause => {
+      clause.showTranslations = false;
+    });
+  }
 }
 
 const generateSummary = () => {
@@ -854,26 +1473,34 @@ const toggleViewMode = () => {
 
 /* 左侧导航栏 */
 .left-sidebar {
-  width: 300px;
+  width: 320px;
   background-color: #ffffff;
   border-right: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
 }
 
 .sidebar-header {
-  padding: 16px;
+  padding: 20px;
   border-bottom: 1px solid #e4e7ed;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(135deg, #409eff 0%, #667eea 100%);
+  color: white;
+  border-radius: 0 8px 0 0;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
 }
 
 .sidebar-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .header-actions {
@@ -888,34 +1515,163 @@ const toggleViewMode = () => {
 .sort-button {
   cursor: pointer;
   font-size: 14px;
-  color: #606266;
+  color: white;
   display: flex;
   align-items: center;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.sort-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tree-container {
   flex: 1;
   overflow: auto;
-  padding: 16px;
+  padding: 20px;
+  background: #f9f9f9;
 }
 
+/* 树形结构样式 */
+.el-tree {
+  --el-tree-node-hover-bg-color: rgba(64, 158, 255, 0.1);
+  --el-tree-node-focus-bg-color: rgba(64, 158, 255, 0.2);
+}
+
+/* 主题节点样式 */
+.el-tree-node__content {
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.el-tree-node__content:hover {
+  background-color: rgba(64, 158, 255, 0.1);
+  transform: translateX(4px);
+}
+
+/* 彩色主题 - 一级节点（主题） */
+.el-tree-node:nth-child(odd) > .el-tree-node__content {
+  background: linear-gradient(90deg, #e3f2fd 0%, #ffffff 100%);
+  border-left: 4px solid #2196f3;
+}
+
+.el-tree-node:nth-child(even) > .el-tree-node__content {
+  background: linear-gradient(90deg, #e8f5e8 0%, #ffffff 100%);
+  border-left: 4px solid #4caf50;
+}
+
+/* 二级节点（规范） */
+.el-tree-node .el-tree-node:nth-child(odd) > .el-tree-node__content {
+  background: linear-gradient(90deg, #fff3e0 0%, #ffffff 100%);
+  border-left: 4px solid #ff9800;
+}
+
+.el-tree-node .el-tree-node:nth-child(even) > .el-tree-node__content {
+  background: linear-gradient(90deg, #f3e5f5 0%, #ffffff 100%);
+  border-left: 4px solid #9c27b0;
+}
+
+/* 立体效果 */
+.el-tree-node__content {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 4px;
+}
+
+.el-tree-node__content:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* 层级节点之间的虚线连接 */
+.el-tree-node__children {
+  position: relative;
+  padding-left: 20px;
+}
+
+.el-tree-node__children::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, #e4e7ed 0px, #e4e7ed 4px, transparent 4px, transparent 8px);
+  z-index: 0;
+}
+
+.el-tree-node__children .el-tree-node::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 20px;
+  width: 20px;
+  height: 2px;
+  background: repeating-linear-gradient(to right, #e4e7ed 0px, #e4e7ed 4px, transparent 4px, transparent 8px);
+  z-index: 0;
+}
+
+/* 树节点内容 */
 .tree-node {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.tree-node span:first-child {
+  font-weight: 500;
+  color: #303133;
+  transition: all 0.3s ease;
+}
+
+.el-tree-node:hover .tree-node span:first-child {
+  color: #409eff;
 }
 
 .spec-tag {
   font-size: 12px;
   color: #909399;
   margin-left: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 8px;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .no-themes {
   text-align: center;
   color: #909399;
-  padding: 40px 0;
+  padding: 60px 0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  margin: 20px;
+}
+
+/* 滚动条样式 */
+.tree-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tree-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.tree-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.tree-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 /* 右侧内容区 */
@@ -1003,6 +1759,201 @@ const toggleViewMode = () => {
 }
 
 /* 条款样式 */
+
+/* 条文说明样式 */
+.clause-explanation {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+}
+
+.clause-explanation h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #389e0d;
+}
+
+.explanation-content {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #303133;
+}
+
+/* 翻译结果样式 */
+.clause-translations {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f0f5ff;
+  border: 1px solid #adc6ff;
+  border-radius: 4px;
+}
+
+.clause-translations h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #1890ff;
+}
+
+.translations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.translation-item {
+  padding: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.translation-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.translation-item.adopted {
+  border-color: #52c41a;
+  background-color: #f6ffed;
+}
+
+.translation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.translation-model {
+  font-size: 12px;
+  font-weight: 500;
+  color: #606266;
+}
+
+.translation-content {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #303133;
+  margin-top: 8px;
+}
+
+/* 人工翻译输入框 */
+.el-input {
+  margin-bottom: 8px;
+}
+
+/* 按钮样式 */
+.explanation-btn {
+  margin-right: 8px;
+}
+
+.translate-btn {
+  margin-right: 8px;
+}
+
+.comment-btn {
+  margin-right: 8px;
+}
+
+/* 批注区域样式 */
+.clause-comments {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 4px;
+}
+
+.clause-comments h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #d46b08;
+}
+
+/* 添加批注 */
+.add-comment {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+}
+
+.comment-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 批注列表 */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-item {
+  padding: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.comment-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 批注内容 */
+.comment-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #909399;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: #606266;
+}
+
+.comment-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #303133;
+  margin: 8px 0;
+}
+
+/* 编辑模式 */
+.comment-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 无批注提示 */
+.no-comments {
+  text-align: center;
+  color: #909399;
+  padding: 24px 0;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
 .clause-item {
   margin-bottom: 12px;
   border: 1px solid #e4e7ed;
