@@ -1,6 +1,6 @@
 <template>
   <div class="accident-cases-view">
-    <h2>工程事故案例库</h2>
+    <h2>事故案例</h2>
     <div class="case-search">
       <el-input
         v-model="searchQuery"

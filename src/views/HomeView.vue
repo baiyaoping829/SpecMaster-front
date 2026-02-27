@@ -64,7 +64,7 @@
           <div class="feature-icon">
             <el-icon><Warning /></el-icon>
           </div>
-          <h3>工程风险智控</h3>
+          <h3>风险智控</h3>
           <p>对上传的施工安全专项方案，根据风险管理相关规范进行风险识别、风险评估、风险处理、专家评审、方案报批、项目归档等，该流程同样需要基于规标大数据模块的选择的多个风险管理控制、安全法规等规范标准生产的风险识别相关规范、类似事故案例等组成的知识库。</p>
           <router-link to="/risk-control" class="feature-link">查看详情</router-link>
         </div>
@@ -74,7 +74,7 @@
           <div class="feature-icon">
             <el-icon><Document /></el-icon>
           </div>
-          <h3>工程合同智审</h3>
+          <h3>合同智审</h3>
           <p>对合同的所有条款给出合作内容、风险条款、法律漏洞等全面多维度的审查，利用大语言模型进行全面审查。同一不同版本的合同进行对比，给出差异，展示过程管理，同时每个条款要求给出存在的问题、修改建议、依据的规范标准等。</p>
           <router-link to="/contract-review" class="feature-link">查看详情</router-link>
         </div>

@@ -30,27 +30,27 @@
       </el-menu-item>
       <el-menu-item index="/risk-control">
         <el-icon><Warning /></el-icon>
-        <span>工程风险智控</span>
+        <span>风险智控</span>
       </el-menu-item>
       <el-menu-item index="/contract-review">
         <el-icon><Files /></el-icon>
-        <span>工程合同智审</span>
+        <span>合同智审</span>
       </el-menu-item>
       <el-menu-item index="/accident-cases">
         <el-icon><Alert /></el-icon>
-        <span>工程事故案例库</span>
+        <span>事故案例</span>
       </el-menu-item>
       <el-menu-item index="/knowledge-base">
         <el-icon><Document /></el-icon>
-        <span>工程领域知识库</span>
+        <span>工程知识</span>
       </el-menu-item>
       <el-menu-item index="/company-expert">
         <el-icon><UserFilled /></el-icon>
-        <span>工程单位及专家管理</span>
+        <span>专家管理</span>
       </el-menu-item>
       <el-menu-item index="/user-role">
         <el-icon><Setting /></el-icon>
-        <span>用户角色管理</span>
+        <span>权限设置</span>
       </el-menu-item>
     </el-menu>
   </div>

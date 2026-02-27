@@ -3,9 +3,7 @@
     <!-- 顶部导航栏 -->
     <header class="main-header">
       <div class="header-left">
-        <el-button type="primary" plain @click="drawerVisible = true" class="menu-button">
-          <el-icon><Menu /></el-icon>
-        </el-button>
+
         <div class="logo">
           <h1>SpecMaster</h1>
         </div>
@@ -26,23 +24,23 @@
             <el-tab-pane label="方案智审" name="plan-review">
               <router-link to="/plan-review" class="tab-link">方案智审</router-link>
             </el-tab-pane>
-            <el-tab-pane label="工程风险智控" name="risk-control">
-              <router-link to="/risk-control" class="tab-link">工程风险智控</router-link>
+            <el-tab-pane label="风险智控" name="risk-control">
+              <router-link to="/risk-control" class="tab-link">风险智控</router-link>
             </el-tab-pane>
-            <el-tab-pane label="工程合同智审" name="contract-review">
-              <router-link to="/contract-review" class="tab-link">工程合同智审</router-link>
+            <el-tab-pane label="合同智审" name="contract-review">
+              <router-link to="/contract-review" class="tab-link">合同智审</router-link>
             </el-tab-pane>
-            <el-tab-pane label="工程事故案例库" name="accident-cases">
-              <router-link to="/accident-cases" class="tab-link">工程事故案例库</router-link>
+            <el-tab-pane label="事故案例" name="accident-cases">
+              <router-link to="/accident-cases" class="tab-link">事故案例</router-link>
             </el-tab-pane>
-            <el-tab-pane label="工程领域知识库" name="knowledge-base">
-              <router-link to="/knowledge-base" class="tab-link">工程领域知识库</router-link>
+            <el-tab-pane label="工程知识" name="knowledge-base">
+              <router-link to="/knowledge-base" class="tab-link">工程知识</router-link>
             </el-tab-pane>
-            <el-tab-pane label="工程单位及专家管理" name="company-expert">
-              <router-link to="/company-expert" class="tab-link">工程单位及专家管理</router-link>
+            <el-tab-pane label="专家管理" name="company-expert">
+              <router-link to="/company-expert" class="tab-link">专家管理</router-link>
             </el-tab-pane>
-            <el-tab-pane label="用户角色管理" name="user-role">
-              <router-link to="/user-role" class="tab-link">用户角色管理</router-link>
+            <el-tab-pane label="权限设置" name="user-role">
+              <router-link to="/user-role" class="tab-link">权限设置</router-link>
             </el-tab-pane>
           </el-tabs>
         </el-scrollbar>
@@ -76,16 +74,7 @@
       </router-view>
     </main>
     
-    <!-- 抽屉式侧边栏 -->
-    <el-drawer
-      v-model="drawerVisible"
-      title="规范标准目录"
-      direction="ltr"
-      size="300px"
-      :before-close="handleClose"
-    >
-      <SidebarLayout />
-    </el-drawer>
+
   </div>
 </template>
 
@@ -93,19 +82,12 @@
 import { ref, watch, onMounted } from 'vue'
 import { useUserStore } from '../../store/modules/user'
 import { useRoute, useRouter } from 'vue-router'
-import SidebarLayout from './SidebarLayout.vue'
 import ModuleLayout from './ModuleLayout.vue'
-import { Menu } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
-const drawerVisible = ref(false)
 const activeTab = ref('home')
-
-const handleClose = () => {
-  drawerVisible.value = false
-}
 
 const handleTabClick = (tab: any) => {
   const tabName = tab.props.name
@@ -136,9 +118,9 @@ onMounted(() => {
 
 .main-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 64px;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 64px;
   background-color: #fff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 0 24px;
@@ -149,7 +131,9 @@ onMounted(() => {
 
 .header-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  width: 100%;
+  padding: 12px 0;
 }
 
 .menu-button {
@@ -158,6 +142,9 @@ onMounted(() => {
 
 .logo {
   margin-right: 40px;
+  display: flex;
+  align-items: center;
+  height: 40px;
 }
 
 .logo h1 {
@@ -169,39 +156,51 @@ onMounted(() => {
 
 .main-nav-scroll {
   flex: 1;
-  height: 64px;
+  min-height: 40px;
+  max-height: 80px;
   
   .el-scrollbar__wrap {
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
   }
 }
 
 .main-nav {
-  width: fit-content;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   
   .el-tabs__header {
     margin: 0;
+    width: 100%;
   }
   
   .el-tabs__nav {
     border-bottom: none;
+    flex-wrap: wrap;
+    display: flex;
   }
   
   .el-tabs__item {
     padding: 0 16px;
-    height: 64px;
-    line-height: 64px;
+    height: 40px;
+    line-height: 40px;
     font-size: 14px;
     color: #606266;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
     
     &:hover {
       color: #409EFF;
+      background-color: #ecf5ff;
     }
     
     &.is-active {
       color: #409EFF;
       font-weight: 500;
+      background-color: #ecf5ff;
     }
   }
   
@@ -221,6 +220,10 @@ onMounted(() => {
 .header-right {
   display: flex;
   align-items: center;
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  height: 40px;
 }
 
 .user-info {

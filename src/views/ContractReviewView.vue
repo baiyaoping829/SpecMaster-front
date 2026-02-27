@@ -1,7 +1,7 @@
 <template>
   <div class="contract-review-view">
       <div class="page-header">
-        <h2>工程合同智审</h2>
+        <h2>合同智审</h2>
       </div>
 
       <!-- 合同上传 -->

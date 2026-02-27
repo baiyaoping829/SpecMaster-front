@@ -1,7 +1,7 @@
 <template>
   <div class="risk-control-view">
       <div class="page-header">
-        <h2>工程风险智控</h2>
+        <h2>风险智控</h2>
         <div class="header-actions">
           <el-button type="primary" @click="createRiskKnowledgeBase">
             <el-icon><folder-add /></el-icon>

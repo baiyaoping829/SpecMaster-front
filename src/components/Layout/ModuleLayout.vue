@@ -4,7 +4,8 @@
     <div class="sidebar-container" :class="{ collapsed: sidebarCollapsed }" :style="{ width: sidebarCollapsed ? '60px' : sidebarWidth + 'px' }">
       <!-- 抽屉式伸缩按钮 -->
       <div class="sidebar-toggle" @click="toggleSidebar">
-        <el-icon>{{ sidebarCollapsed ? 'ArrowRight' : 'ArrowLeft' }}</el-icon>
+        <el-icon v-if="sidebarCollapsed"><ArrowRight /></el-icon>
+        <el-icon v-else><ArrowLeft /></el-icon>
       </div>
       <!-- 根据当前路由显示不同的左侧栏 -->
       <component :is="currentSidebar" />

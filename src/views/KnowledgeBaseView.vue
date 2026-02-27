@@ -1,6 +1,6 @@
 <template>
   <div class="knowledge-base-view">
-    <h2>工程领域知识库</h2>
+    <h2>工程知识</h2>
     <div class="knowledge-search">
       <el-input
         v-model="searchQuery"

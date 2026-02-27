@@ -1,6 +1,6 @@
 <template>
   <div class="company-expert-view">
-    <h2>工程单位及专家管理</h2>
+    <h2>专家管理</h2>
     
     <el-tabs v-model="activeTab">
       <el-tab-pane label="工程单位管理" name="company">

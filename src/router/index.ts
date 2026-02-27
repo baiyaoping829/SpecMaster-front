@@ -84,37 +84,37 @@ const router = createRouter({
       path: '/risk-control',
       name: 'RiskControl',
       component: () => import('../views/RiskControlView.vue'),
-      meta: { title: '工程风险智控' }
+      meta: { title: '风险智控' }
     },
     {
       path: '/contract-review',
       name: 'ContractReview',
       component: () => import('../views/ContractReviewView.vue'),
-      meta: { title: '工程合同智审' }
+      meta: { title: '合同智审' }
     },
     {
       path: '/accident-cases',
       name: 'AccidentCases',
       component: () => import('../views/AccidentCasesView.vue'),
-      meta: { title: '工程事故案例库' }
+      meta: { title: '事故案例' }
     },
     {
       path: '/knowledge-base',
       name: 'KnowledgeBase',
       component: () => import('../views/KnowledgeBaseView.vue'),
-      meta: { title: '工程领域知识库' }
+      meta: { title: '工程知识' }
     },
     {
       path: '/company-expert',
       name: 'CompanyExpert',
       component: () => import('../views/CompanyExpertView.vue'),
-      meta: { title: '工程单位及专家管理' }
+      meta: { title: '专家管理' }
     },
     {
       path: '/user-role',
       name: 'UserRole',
       component: () => import('../views/UserRoleView.vue'),
-      meta: { title: '用户角色管理' }
+      meta: { title: '权限设置' }
     }
   ]
 })

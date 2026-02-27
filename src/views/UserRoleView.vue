@@ -1,6 +1,6 @@
 <template>
   <div class="user-role-view">
-    <h2>用户角色管理</h2>
+    <h2>权限设置</h2>
     
     <el-tabs v-model="activeTab">
       <el-tab-pane label="用户管理" name="user">
@@ -158,8 +158,8 @@ const permissionTree = ref([
     label: '工程管理',
     children: [
       { id: 'P003-1', label: '方案智审' },
-      { id: 'P003-2', label: '工程风险智控' },
-      { id: 'P003-3', label: '工程合同智审' }
+      { id: 'P003-2', label: '风险智控' },
+      { id: 'P003-3', label: '合同智审' }
     ]
   }
 ])
