@@ -57,6 +57,18 @@ const router = createRouter({
       meta: { title: '规范智阅' }
     },
     {
+    path: '/spec-reader-theme',
+    name: 'SpecReaderTheme',
+    component: () => import('../views/SpecReaderThemeView.vue'),
+    meta: { title: '创建阅览主题' }
+  },
+  {
+    path: '/similar-clauses',
+    name: 'SimilarClauses',
+    component: () => import('../views/SimilarClausesView.vue'),
+    meta: { title: '相似条款检索' }
+  },
+    {
       path: '/spec-qa',
       name: 'SpecQA',
       component: () => import('../views/SpecQAView.vue'),
