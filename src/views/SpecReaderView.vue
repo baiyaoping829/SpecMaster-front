@@ -317,6 +317,102 @@
                         </div>
                       </div>
                       
+                      <!-- 公式区域 -->
+                      <div v-if="clause.hasFormula" class="clause-formula">
+                        <h4>公式</h4>
+                        <div class="formula-content">
+                          <!-- 渲染后的公式 -->
+                          <div class="formula-rendered">
+                            {{ clause.formula }}
+                          </div>
+                          <!-- LaTeX 源代码 -->
+                          <div v-if="clause.latexCode" class="latex-code">
+                            <div class="latex-code-header">
+                              <span>LaTeX源代码</span>
+                              <el-button 
+                                size="small" 
+                                @click="copyLatexCode(clause.latexCode)"
+                              >
+                                复制
+                              </el-button>
+                            </div>
+                            <div class="latex-code-content">
+                              ${{ clause.latexCode }}$
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- 表格区域 -->
+                      <div v-if="clause.hasTable && clause.table" class="clause-table">
+                        <h4>表格</h4>
+                        <el-table 
+                          :data="clause.table.slice(1)" 
+                          style="width: 100%"
+                          border
+                          :cell-style="{ textAlign: 'center' }"
+                          :header-cell-style="{ textAlign: 'center' }"
+                        >
+                          <el-table-column 
+                            v-for="(header, index) in clause.table[0]" 
+                            :key="index" 
+                            :label="header"
+                          >
+                            <template #default="scope">
+                              {{ scope.row[index] }}
+                            </template>
+                          </el-table-column>
+                        </el-table>
+                      </div>
+                      
+                      <!-- 图片区域 -->
+                      <div v-if="clause.hasImage && clause.image" class="clause-image">
+                        <h4>图片</h4>
+                        <div class="image-content">
+                          <img :src="clause.image" alt="条款图片" class="clause-image-item">
+                        </div>
+                        <div class="image-actions">
+                          <el-button size="small" @click="copyImage(clause.image)">
+                            复制图片
+                          </el-button>
+                          <el-button size="small" @click="zoomImage(clause.image)">
+                            图片放大
+                          </el-button>
+                          <el-button size="small" @click="enhanceImage(clause)">
+                            图片增强
+                          </el-button>
+                        </div>
+                      </div>
+                      
+                      <!-- 引用区域 -->
+                      <div v-if="clause.hasReferences && clause.references" class="clause-references">
+                        <h4>引用规范</h4>
+                        <div class="references-list">
+                          <div 
+                            v-for="(reference, index) in clause.references" 
+                            :key="index"
+                            class="reference-item"
+                          >
+                            <div class="reference-header" style="display: flex; justify-content: space-between; align-items: center;">
+                              <div class="reference-info">
+                                <span class="reference-spec">{{ reference.specName }} ({{ reference.specCode }})</span>
+                                <span class="reference-clause">条款 {{ reference.clauseNumber }}</span>
+                              </div>
+                              <el-button 
+                                size="small" 
+                                type="primary" 
+                                @click="linkToSpecData(reference)"
+                                :disabled="reference.isLinked"
+                                class="reference-link-btn"
+                              >
+                                {{ reference.isLinked ? '已链接' : '智能链接' }}
+                              </el-button>
+                            </div>
+                            <div class="reference-content">{{ reference.clauseContent }}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
                       <!-- 批注区域 -->
                       <div v-if="clause.showComments" class="clause-comments">
                         <h4>用户批注</h4>
@@ -546,6 +642,102 @@
                               @input="updateManualTranslation(clause)"
                             />
                             <div class="translation-content">{{ clause.translations.custom.content || '' }}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- 公式区域 -->
+                      <div v-if="clause.hasFormula" class="clause-formula">
+                        <h4>公式</h4>
+                        <div class="formula-content">
+                          <!-- 渲染后的公式 -->
+                          <div class="formula-rendered">
+                            {{ clause.formula }}
+                          </div>
+                          <!-- LaTeX 源代码 -->
+                          <div v-if="clause.latexCode" class="latex-code">
+                            <div class="latex-code-header">
+                              <span>LaTeX源代码</span>
+                              <el-button 
+                                size="small" 
+                                @click="copyLatexCode(clause.latexCode)"
+                              >
+                                复制
+                              </el-button>
+                            </div>
+                            <div class="latex-code-content">
+                              ${{ clause.latexCode }}$
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- 表格区域 -->
+                      <div v-if="clause.hasTable && clause.table" class="clause-table">
+                        <h4>表格</h4>
+                        <el-table 
+                          :data="clause.table.slice(1)" 
+                          style="width: 100%"
+                          border
+                          :cell-style="{ textAlign: 'center' }"
+                          :header-cell-style="{ textAlign: 'center' }"
+                        >
+                          <el-table-column 
+                            v-for="(header, index) in clause.table[0]" 
+                            :key="index" 
+                            :label="header"
+                          >
+                            <template #default="scope">
+                              {{ scope.row[index] }}
+                            </template>
+                          </el-table-column>
+                        </el-table>
+                      </div>
+                      
+                      <!-- 图片区域 -->
+                      <div v-if="clause.hasImage && clause.image" class="clause-image">
+                        <h4>图片</h4>
+                        <div class="image-content">
+                          <img :src="clause.image" alt="条款图片" class="clause-image-item">
+                        </div>
+                        <div class="image-actions">
+                          <el-button size="small" @click="copyImage(clause.image)">
+                            复制图片
+                          </el-button>
+                          <el-button size="small" @click="zoomImage(clause.image)">
+                            图片放大
+                          </el-button>
+                          <el-button size="small" @click="enhanceImage(clause)">
+                            图片增强
+                          </el-button>
+                        </div>
+                      </div>
+                      
+                      <!-- 引用区域 -->
+                      <div v-if="clause.hasReferences && clause.references" class="clause-references">
+                        <h4>引用规范</h4>
+                        <div class="references-list">
+                          <div 
+                            v-for="(reference, index) in clause.references" 
+                            :key="index"
+                            class="reference-item"
+                          >
+                            <div class="reference-header" style="display: flex; justify-content: space-between; align-items: center;">
+                              <div class="reference-info">
+                                <span class="reference-spec">{{ reference.specName }} ({{ reference.specCode }})</span>
+                                <span class="reference-clause">条款 {{ reference.clauseNumber }}</span>
+                              </div>
+                              <el-button 
+                                size="small" 
+                                type="primary" 
+                                @click="linkToSpecData(reference)"
+                                :disabled="reference.isLinked"
+                                class="reference-link-btn"
+                              >
+                                {{ reference.isLinked ? '已链接' : '智能链接' }}
+                              </el-button>
+                            </div>
+                            <div class="reference-content">{{ reference.clauseContent }}</div>
                           </div>
                         </div>
                       </div>
@@ -916,7 +1108,15 @@ const generateSpecContent = (specId: string): Clause[] => {
         { id: '3.1.3', content: '3.1.3 正常使用极限状态对应于结构或构件达到正常使用或耐久性能的某项规定限值。', isTranslated: false, level: 3, isFavorite: false, popularity: 80, translations: { ...baseTranslations } },
         { id: '3.2', content: '3.2 结构设计的安全等级', isTranslated: false, level: 2, isFavorite: false, popularity: 75, translations: { ...baseTranslations } },
         { id: '3.2.1', content: '3.2.1 混凝土结构设计时，应根据结构破坏可能产生的后果的严重性，采用不同的安全等级。', isTranslated: false, level: 3, isFavorite: false, popularity: 85, translations: { ...baseTranslations } },
-        { id: '3.2.2', content: '3.2.2 混凝土结构的安全等级应按表3.2.2的规定划分。', isTranslated: false, level: 3, isFavorite: false, popularity: 80, translations: { ...baseTranslations } }
+        { id: '3.2.2', content: '3.2.2 混凝土结构的安全等级应按表3.2.2的规定划分。', isTranslated: false, level: 3, isFavorite: false, popularity: 80, translations: { ...baseTranslations }, hasTable: true, table: [['安全等级', '破坏后果', '建筑物类型'], ['一级', '很严重', '重要的房屋'], ['二级', '严重', '一般的房屋'], ['三级', '不严重', '次要的房屋']] },
+        // 带有公式的条款
+        { id: '4.1.1', content: '4.1.1 混凝土轴心抗压强度设计值应按公式(4.1.1)计算。', isTranslated: false, level: 3, isFavorite: false, popularity: 85, translations: { ...baseTranslations }, hasFormula: true, formula: 'f_c = f_ck / γ_c', latexCode: 'f_c = f_ck / \gamma_c' },
+        // 带有图片的条款
+        { id: '5.1.1', content: '5.1.1 钢筋的锚固长度应符合图5.1.1的规定。', isTranslated: false, level: 3, isFavorite: false, popularity: 80, translations: { ...baseTranslations }, hasImage: true, image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=reinforcement%20anchorage%20length%20diagram%20in%20concrete%20structure&image_size=landscape_16_9' },
+        // 带有组合公式、表格和图片的条款
+        { id: '6.1.1', content: '6.1.1 受弯构件的正截面承载力应按公式(6.1.1)计算，配筋率应符合表6.1.1的规定，构造要求应符合图6.1.1的要求。', isTranslated: false, level: 3, isFavorite: false, popularity: 90, translations: { ...baseTranslations }, hasFormula: true, formula: 'M ≤ f_y A_s (h_0 - x/2)', latexCode: 'M \leq f_y A_s (h_0 - x/2)', hasTable: true, table: [['构件类型', '最小配筋率(%)'], ['梁', '0.2'], ['板', '0.15']], hasImage: true, image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=reinforced%20concrete%20beam%20cross%20section%20with%20reinforcement&image_size=landscape_16_9' },
+        // 带有对其他规范引用的条款
+        { id: '7.1.1', content: '7.1.1 混凝土结构的抗震设计应符合现行国家标准《建筑抗震设计规范》GB 50011的有关规定。', isTranslated: false, level: 3, isFavorite: false, popularity: 85, translations: { ...baseTranslations }, hasReferences: true, references: [{ specName: '建筑抗震设计规范', specCode: 'GB 50011', clauseNumber: '5.1.1', clauseContent: '建筑结构的抗震设计应符合本规范的规定。', isLinked: false, linkedSpecId: '3' }] }
       ];
     
     case '3': // 建筑抗震设计规范 (GB 50011-2010)
@@ -1150,6 +1350,81 @@ const saveAdoptedTranslation = (clause: Clause, model: TranslationModel) => {
   // 实际应用中，这里应该调用 API 将翻译结果保存到数据库
   // 例如：
   // await api.saveTranslation({ clauseId: clause.id, model: model, content: clause.translations[model].content });
+};
+
+// 复制 LaTeX 代码
+const copyLatexCode = (latexCode: string) => {
+  // 复制带 $ 符号的 LaTeX 代码到剪贴板
+  const codeWithDollars = `$${latexCode}$`;
+  navigator.clipboard.writeText(codeWithDollars).then(() => {
+    ElMessage.success('LaTeX 代码已复制到剪贴板');
+  }).catch(err => {
+    console.error('复制失败:', err);
+    ElMessage.error('复制失败，请手动复制');
+  });
+};
+
+// 复制图片
+const copyImage = (imageUrl: string) => {
+  // 模拟复制图片功能
+  console.log('复制图片:', imageUrl);
+  ElMessage.success('图片已复制到剪贴板');
+  
+  // 实际应用中，这里可以使用 Canvas 或其他方法实现图片复制
+  // 例如：
+  // const img = new Image();
+  // img.crossOrigin = 'anonymous';
+  // img.onload = () => {
+  //   const canvas = document.createElement('canvas');
+  //   canvas.width = img.width;
+  //   canvas.height = img.height;
+  //   const ctx = canvas.getContext('2d');
+  //   ctx.drawImage(img, 0, 0);
+  //   canvas.toBlob(blob => {
+  //     navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+  //   });
+  // };
+  // img.src = imageUrl;
+};
+
+// 放大图片
+const zoomImage = (imageUrl: string) => {
+  // 模拟图片放大功能
+  console.log('放大图片:', imageUrl);
+  // 实际应用中，这里可以打开一个新窗口显示放大的图片
+  window.open(imageUrl, '_blank', 'width=800,height=600');
+  ElMessage.success('图片已放大显示');
+};
+
+// 增强图片
+const enhanceImage = (clause: Clause) => {
+  // 模拟图片增强功能
+  console.log('增强图片:', clause.image);
+  clause.isImageEnhanced = true;
+  ElMessage.success('图片增强完成');
+  
+  // 实际应用中，这里可以调用多模态大模型 API 来增强图片
+  // 例如：
+  // const enhancedImage = await api.enhanceImage(clause.image);
+  // clause.image = enhancedImage;
+  // clause.isImageEnhanced = true;
+};
+
+// 智能链接功能
+const linkToSpecData = (reference: SpecReference) => {
+  // 模拟智能链接功能
+  console.log('智能链接:', reference);
+  reference.isLinked = true;
+  
+  // 将引用条款的信息添加到原规范的对应条款上，形成图谱
+  const linkedInfo = `${reference.specName} (${reference.specCode}) 条款 ${reference.clauseNumber}: ${reference.clauseContent}`;
+  console.log('添加到知识图谱:', linkedInfo);
+  
+  ElMessage.success('智能链接成功，已添加到知识图谱');
+  
+  // 实际应用中，这里可以调用 API 将链接关系保存到数据库
+  // 例如：
+  // await api.linkToSpecData(reference);
 };
 
 // 更新人工翻译
@@ -1953,6 +2228,183 @@ const toggleViewMode = () => {
   padding: 24px 0;
   background-color: #f9f9f9;
   border-radius: 4px;
+}
+
+/* 公式区域样式 */
+.clause-formula {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f0f5ff;
+  border: 1px solid #adc6ff;
+  border-radius: 4px;
+}
+
+.clause-formula h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #1890ff;
+}
+
+.formula-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formula-rendered {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+  padding: 8px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.latex-code {
+  padding: 12px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.latex-code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #606266;
+}
+
+.latex-code-content {
+  font-size: 14px;
+  color: #303133;
+  padding: 8px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+}
+
+/* 表格区域样式 */
+.clause-table {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+}
+
+.clause-table h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #389e0d;
+}
+
+/* 图片区域样式 */
+.clause-image {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 4px;
+}
+
+.clause-image h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #d46b08;
+}
+
+.image-content {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.clause-image-item {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.image-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* 引用区域样式 */
+.clause-references {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f9f0ff;
+  border: 1px solid #d3adf7;
+  border-radius: 4px;
+}
+
+.clause-references h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #722ed1;
+}
+
+.references-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reference-item {
+  padding: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.reference-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reference-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reference-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reference-spec {
+  font-weight: 500;
+  color: #303133;
+}
+
+.reference-clause {
+  font-size: 14px;
+  color: #606266;
+}
+
+.reference-link-btn {
+  margin-left: auto;
+}
+
+.reference-content {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #606266;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
 }
 .clause-item {
   margin-bottom: 12px;
