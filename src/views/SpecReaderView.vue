@@ -68,7 +68,13 @@
                 placeholder="请选择阅览主题" 
                 clearable
                 style="min-width: 200px; width: auto;"
+                @change="handleThemeChange"
               >
+                <el-option 
+                  label="全部主题" 
+                  value="all"
+                  :style="{ width: 'auto' }"
+                />
                 <el-option 
                   v-for="kb in knowledgeBases" 
                   :key="kb.id" 
@@ -87,7 +93,7 @@
                 style="min-width: 300px; width: auto;"
               >
                 <el-option 
-                  v-for="spec in specs" 
+                  v-for="spec in filteredSpecs" 
                   :key="spec.id" 
                   :label="`${spec.name} (${spec.code})`" 
                   :value="spec.id"
@@ -906,6 +912,25 @@ const knowledgeBases = computed(() => readerStore.themes)
 
 // 计算属性获取规范列表
 const specs = computed(() => readerStore.availableSpecs)
+
+// 计算属性根据选择的主题过滤规范
+const filteredSpecs = computed(() => {
+  const selectedThemeId = knowledgeBaseForm.knowledgeBaseId
+  if (!selectedThemeId || selectedThemeId === 'all') {
+    return specs.value
+  }
+  const selectedTheme = readerStore.getThemeById(selectedThemeId)
+  if (selectedTheme && selectedTheme.specs) {
+    return selectedTheme.specs
+  }
+  return []
+})
+
+// 处理主题变化
+const handleThemeChange = () => {
+  // 当主题变化时，清空已选择的规范
+  knowledgeBaseForm.specIds = []
+}
 
 const currentSpecIndex = ref(0)
 const currentSpec = computed(() => {
