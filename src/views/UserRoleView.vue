@@ -13,8 +13,26 @@
               style="width: 300px;"
               @keyup.enter="searchUsers"
             />
+            <el-select v-model="userRoleFilter" placeholder="选择角色" style="margin-left: 12px; width: 150px;">
+              <el-option label="全部" value="" />
+              <el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.name" />
+            </el-select>
+            <el-select v-model="userPlanFilter" placeholder="选择付费等级" style="margin-left: 12px; width: 150px;">
+              <el-option label="全部" value="" />
+              <el-option v-for="plan in plans" :key="plan.id" :label="plan.name" :value="plan.name" />
+            </el-select>
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              style="margin-left: 12px;"
+              @change="searchUsers"
+            />
             <el-button type="primary" style="margin-left: 12px;" @click="searchUsers">搜索</el-button>
             <el-button type="success" style="margin-left: 12px;" @click="addUser">添加用户</el-button>
+            <el-button type="info" style="margin-left: 12px;" @click="clearUserFilters">清空筛选</el-button>
           </div>
           
           <el-table :data="filteredUsers" style="width: 100%; margin-top: 20px;" height="600">
@@ -504,6 +522,9 @@ const activeTab = ref('user')
 
 // 用户搜索
 const userSearchQuery = ref('')
+const userRoleFilter = ref('')
+const userPlanFilter = ref('')
+const dateRange = ref<[Date, Date] | null>(null)
 
 // 用户数据
 const users = ref([
@@ -731,14 +752,29 @@ const users = ref([
 
 // 过滤后的用户数据
 const filteredUsers = computed(() => {
-  if (!userSearchQuery.value) {
-    return users.value
-  }
-  const query = userSearchQuery.value.toLowerCase()
-  return users.value.filter(user => 
-    user.username.toLowerCase().includes(query) || 
-    user.email.toLowerCase().includes(query)
-  )
+  return users.value.filter(user => {
+    // 用户名或邮箱搜索
+    const query = userSearchQuery.value.toLowerCase()
+    const matchesSearch = !userSearchQuery.value || 
+      user.username.toLowerCase().includes(query) || 
+      user.email.toLowerCase().includes(query)
+    
+    // 角色筛选
+    const matchesRole = !userRoleFilter.value || user.role === userRoleFilter.value
+    
+    // 付费等级筛选
+    const matchesPlan = !userPlanFilter.value || user.plan === userPlanFilter.value
+    
+    // 日期范围筛选
+    const matchesDate = !dateRange.value || (() => {
+      const userDate = new Date(user.createdAt)
+      const startDate = dateRange.value![0]
+      const endDate = dateRange.value![1]
+      return userDate >= startDate && userDate <= endDate
+    })()
+    
+    return matchesSearch && matchesRole && matchesPlan && matchesDate
+  })
 })
 
 // 用户对话框
@@ -1219,6 +1255,15 @@ const toggleUserStatus = (user: any) => {
 const searchUsers = () => {
   // 搜索功能由filteredUsers计算属性实现
   ElMessage.info('搜索完成')
+}
+
+// 清空用户筛选
+const clearUserFilters = () => {
+  userSearchQuery.value = ''
+  userRoleFilter.value = ''
+  userPlanFilter.value = ''
+  dateRange.value = null
+  ElMessage.info('筛选条件已清空')
 }
 
 // 保存用户
