@@ -2,15 +2,23 @@
   <div class="accident-analysis">
     <div class="analysis-header">
       <h2>事故分析</h2>
-      <div class="accident-selector">
-        <el-select v-model="selectedAccidentId" placeholder="选择事故案例" @change="loadAccidentDetail">
-          <el-option 
-            v-for="accident in accidents" 
-            :key="accident.id" 
-            :label="accident.name" 
-            :value="accident.id" 
-          />
-        </el-select>
+      <div class="header-actions">
+        <div class="accident-selector">
+          <el-select v-model="selectedAccidentId" placeholder="选择事故案例" @change="loadAccidentDetail">
+            <el-option 
+              v-for="accident in accidents" 
+              :key="accident.id" 
+              :label="accident.name" 
+              :value="accident.id" 
+            />
+          </el-select>
+        </div>
+        <el-switch 
+          v-model="isEditMode" 
+          active-text="编辑模式" 
+          inactive-text="锁定模式" 
+          @change="handleEditModeChange"
+        />
       </div>
     </div>
 
@@ -23,38 +31,38 @@
             <span class="card-badge" :class="getLevelClass(selectedAccident.level)">{{ selectedAccident.level }}</span>
           </div>
         </template>
-        <div class="info-list">
-          <div class="info-list-item">
-            <span class="info-list-label">事故类型：</span>
-            <span class="info-list-value">{{ selectedAccident.type }}</span>
+        <div class="info-grid">
+          <div class="info-grid-item">
+            <span class="info-grid-label">事故类型：</span>
+            <span class="info-grid-value">{{ selectedAccident.type }}</span>
           </div>
-          <div class="info-list-item">
-            <span class="info-list-label">事故日期：</span>
-            <span class="info-list-value">{{ selectedAccident.accidentDate }}</span>
+          <div class="info-grid-item">
+            <span class="info-grid-label">事故日期：</span>
+            <span class="info-grid-value">{{ selectedAccident.accidentDate }}</span>
           </div>
-          <div class="info-list-item">
-            <span class="info-list-label">所属省份：</span>
-            <span class="info-list-value">{{ selectedAccident.province }}</span>
+          <div class="info-grid-item">
+            <span class="info-grid-label">所属省份：</span>
+            <span class="info-grid-value">{{ selectedAccident.province }}</span>
           </div>
-          <div class="info-list-item">
-            <span class="info-list-label">人员伤亡：</span>
-            <span class="info-list-value">{{ selectedAccident.casualties }}</span>
+          <div class="info-grid-item">
+            <span class="info-grid-label">人员伤亡：</span>
+            <span class="info-grid-value">{{ selectedAccident.casualties }}</span>
           </div>
-          <div class="info-list-item">
-            <span class="info-list-label">经济损失：</span>
-            <span class="info-list-value">{{ selectedAccident.economicLoss }}万元</span>
+          <div class="info-grid-item">
+            <span class="info-grid-label">经济损失：</span>
+            <span class="info-grid-value">{{ selectedAccident.economicLoss }}万元</span>
           </div>
-          <div class="info-list-item">
-            <span class="info-list-label">责任单位：</span>
-            <span class="info-list-value">{{ selectedAccident.responsibleUnit }}</span>
+          <div class="info-grid-item">
+            <span class="info-grid-label">责任单位：</span>
+            <span class="info-grid-value">{{ selectedAccident.responsibleUnit }}</span>
           </div>
-          <div class="info-list-item">
-            <span class="info-list-label">工程类型：</span>
-            <span class="info-list-value">{{ selectedAccident.projectType }}</span>
+          <div class="info-grid-item">
+            <span class="info-grid-label">工程类型：</span>
+            <span class="info-grid-value">{{ selectedAccident.projectType }}</span>
           </div>
-          <div class="info-list-item">
-            <span class="info-list-label">事故等级：</span>
-            <span class="info-list-value">{{ selectedAccident.level }}</span>
+          <div class="info-grid-item">
+            <span class="info-grid-label">事故等级：</span>
+            <span class="info-grid-value">{{ selectedAccident.level }}</span>
           </div>
         </div>
         <div class="accident-summary">
@@ -68,54 +76,132 @@
         <template #header>
           <div class="card-header">
             <span class="card-title">事故发展历程</span>
-            <el-button type="primary" size="small" @click="addTimelineEvent">添加环节</el-button>
+            <div class="header-actions" v-if="isEditMode">
+              <el-button type="primary" size="small" @click="addTimelineEvent">添加环节</el-button>
+              <el-button type="success" size="small" @click="addMajorEvent">添加重大节点</el-button>
+              <el-button type="info" size="small" @click="saveAllChanges">保存修改</el-button>
+              <el-button type="warning" size="small" @click="refreshTimeline">刷新排序</el-button>
+            </div>
           </div>
         </template>
         <div class="timeline-container">
-          <el-timeline>
-            <el-timeline-item 
-              v-for="(event, index) in accidentTimeline" 
-              :key="index" 
-              :timestamp="event.time"
-              :type="event.type"
-              :icon="event.icon"
-            >
-              <div class="timeline-content">
-                <div class="timeline-header">
-                  <h4>{{ event.title }}</h4>
-                  <div class="timeline-actions">
-                    <el-button size="small" @click="addSubEvent(index)">添加子环节</el-button>
-                    <el-button size="small" type="primary" @click="editEvent(index)">编辑</el-button>
-                    <el-button size="small" type="danger" @click="deleteEvent(index)">删除</el-button>
-                  </div>
+          <!-- 批量编辑模式 -->
+          <div v-if="isEditMode" class="batch-edit-mode">
+            <div v-for="(event, index) in accidentTimeline" :key="index" :class="['event-edit-card', event.isMajor ? 'major-event-card' : '']">
+              <div class="event-header">
+                <div class="event-info">
+                  <el-input v-model="event.title" placeholder="环节标题" class="event-title-input" />
+                  <el-datetime-picker v-model="event.time" type="datetime" placeholder="选择时间" class="event-time-input" />
+                  <el-checkbox v-model="event.isMajor" class="event-major-checkbox">重大节点</el-checkbox>
                 </div>
-                <p>{{ event.description }}</p>
-                <!-- 子环节 -->
-                <div class="sub-timeline" v-if="event.subEvents && event.subEvents.length > 0">
-                  <el-timeline>
-                    <el-timeline-item 
-                      v-for="(subEvent, subIndex) in event.subEvents" 
-                      :key="subIndex" 
-                      :timestamp="subEvent.time"
-                      :type="subEvent.type"
-                      :icon="subEvent.icon"
-                    >
-                      <div class="sub-timeline-content">
-                        <div class="sub-timeline-header">
-                          <h5>{{ subEvent.title }}</h5>
-                          <div class="sub-timeline-actions">
-                            <el-button size="small" type="primary" @click="editSubEvent(index, subIndex)">编辑</el-button>
-                            <el-button size="small" type="danger" @click="deleteSubEvent(index, subIndex)">删除</el-button>
-                          </div>
-                        </div>
-                        <p>{{ subEvent.description }}</p>
-                      </div>
-                    </el-timeline-item>
-                  </el-timeline>
+                <div class="event-actions">
+                  <el-select v-model="event.type" placeholder="类型" class="event-type-select">
+                    <el-option label="危险" value="danger" />
+                    <el-option label="警告" value="warning" />
+                    <el-option label="信息" value="info" />
+                    <el-option label="主要" value="primary" />
+                    <el-option label="成功" value="success" />
+                  </el-select>
+                  <el-select v-model="event.icon" placeholder="图标" class="event-icon-select">
+                    <el-option label="警告" value="el-icon-warning" />
+                    <el-option label="旗帜" value="el-icon-s-flag" />
+                    <el-option label="完成" value="el-icon-finished" />
+                    <el-option label="搜索" value="el-icon-search" />
+                    <el-option label="文档" value="el-icon-document" />
+                  </el-select>
+                  <el-button size="small" @click="addEventBefore(index)">在前面添加</el-button>
+                  <el-button size="small" @click="addEventAfter(index)">在后面添加</el-button>
+                  <el-button size="small" @click="addSubEvent(index)">添加子环节</el-button>
+                  <el-button size="small" type="danger" @click="deleteEvent(index)">删除</el-button>
                 </div>
               </div>
-            </el-timeline-item>
-          </el-timeline>
+              <el-input 
+                type="textarea" 
+                v-model="event.description" 
+                placeholder="环节描述" 
+                :rows="2" 
+                class="event-description-input"
+              />
+              
+              <!-- 子环节编辑 -->
+              <div v-if="event.subEvents && event.subEvents.length > 0" class="sub-events-container">
+                <div v-for="(subEvent, subIndex) in event.subEvents" :key="subIndex" class="sub-event-edit-card">
+                  <div class="sub-event-header">
+                    <div class="sub-event-info">
+                      <el-input v-model="subEvent.title" placeholder="子环节标题" class="sub-event-title-input" />
+                      <el-datetime-picker v-model="subEvent.time" type="datetime" placeholder="选择时间" class="sub-event-time-input" />
+                    </div>
+                    <div class="sub-event-actions">
+                      <el-select v-model="subEvent.type" placeholder="类型" class="sub-event-type-select">
+                        <el-option label="危险" value="danger" />
+                        <el-option label="警告" value="warning" />
+                        <el-option label="信息" value="info" />
+                        <el-option label="主要" value="primary" />
+                        <el-option label="成功" value="success" />
+                      </el-select>
+                      <el-select v-model="subEvent.icon" placeholder="图标" class="sub-event-icon-select">
+                        <el-option label="警告" value="el-icon-warning" />
+                        <el-option label="旗帜" value="el-icon-s-flag" />
+                        <el-option label="完成" value="el-icon-finished" />
+                        <el-option label="搜索" value="el-icon-search" />
+                        <el-option label="文档" value="el-icon-document" />
+                      </el-select>
+                      <el-button size="small" @click="addSubEventBefore(index, subIndex)">在前面添加</el-button>
+                      <el-button size="small" @click="addSubEventAfter(index, subIndex)">在后面添加</el-button>
+                      <el-button size="small" type="danger" @click="deleteSubEvent(index, subIndex)">删除</el-button>
+                    </div>
+                  </div>
+                  <el-input 
+                    type="textarea" 
+                    v-model="subEvent.description" 
+                    placeholder="子环节描述" 
+                    :rows="2" 
+                    class="sub-event-description-input"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 查看模式 - 事件发展树 -->
+          <div v-else class="event-tree-container">
+            <div v-for="(event, index) in accidentTimeline" :key="index" :class="['event-tree-item', event.isMajor ? 'major-event-item' : '']">
+              <!-- 时间线节点 -->
+              <div class="event-tree-node">
+                <div :class="['node-dot', event.isMajor ? 'major-node-dot' : '']"></div>
+                <div v-if="index < accidentTimeline.length - 1" :class="['node-line', event.isMajor ? 'major-node-line' : '']"></div>
+              </div>
+              
+              <!-- 事件内容 -->
+              <div :class="['event-tree-content', event.isMajor ? 'major-event-content' : '']">
+                <div class="event-tree-header">
+                  <div class="event-tree-title">
+                    <h4>{{ event.title }}</h4>
+                    <span v-if="event.isMajor" class="major-event-badge">重大节点</span>
+                  </div>
+                  <span class="event-tree-time">{{ event.time }}</span>
+                </div>
+                <p class="event-tree-description">{{ event.description }}</p>
+                
+                <!-- 子环节树 -->
+                <div v-if="event.subEvents && event.subEvents.length > 0" class="sub-event-tree">
+                  <div v-for="(subEvent, subIndex) in event.subEvents" :key="subIndex" class="sub-event-tree-item">
+                    <div class="sub-event-tree-node">
+                      <div class="sub-node-dot"></div>
+                      <div v-if="subIndex < event.subEvents.length - 1" class="sub-node-line"></div>
+                    </div>
+                    <div class="sub-event-tree-content">
+                      <div class="sub-event-tree-header">
+                        <h5>{{ subEvent.title }}</h5>
+                        <span class="sub-event-tree-time">{{ subEvent.time }}</span>
+                      </div>
+                      <p class="sub-event-tree-description">{{ subEvent.description }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </el-card>
 
@@ -260,7 +346,7 @@
         <template #header>
           <div class="card-header">
             <span class="card-title">事故发生机理逻辑图</span>
-            <el-button type="primary" size="small" @click="generateLogicDiagram">智能生成逻辑图</el-button>
+            <el-button v-if="isEditMode" type="primary" size="small" @click="generateLogicDiagram">智能生成逻辑图</el-button>
           </div>
         </template>
         <div class="logic-diagram">
@@ -280,7 +366,7 @@
         <template #header>
           <div class="card-header">
             <span class="card-title">事故知识图谱</span>
-            <el-button type="primary" size="small" @click="generateKnowledgeGraph">智能生成图谱</el-button>
+            <el-button v-if="isEditMode" type="primary" size="small" @click="generateKnowledgeGraph">智能生成图谱</el-button>
           </div>
         </template>
         <div class="graph-container">
@@ -324,14 +410,14 @@
         <template #header>
           <div class="card-header">
             <span class="card-title">事故现场照片</span>
-            <el-button type="primary" size="small" @click="addPhoto">添加照片</el-button>
+            <el-button v-if="isEditMode" type="primary" size="small" @click="addPhoto">添加照片</el-button>
           </div>
         </template>
         <div class="photos-grid">
           <div class="photo-item" v-for="(photo, index) in accidentPhotos" :key="index">
             <div class="photo-container">
               <img :src="photo.url" :alt="photo.description" class="photo-image" />
-              <div class="photo-actions">
+              <div class="photo-actions" v-if="isEditMode">
                 <el-button size="small" type="primary" @click="editPhoto(index)">编辑</el-button>
                 <el-button size="small" type="danger" @click="deletePhoto(index)">删除</el-button>
               </div>
@@ -465,39 +551,100 @@ const selectedAccident = computed(() => {
 // 事故发展历程
 const accidentTimeline = ref([
   {
-    time: '2025-04-08 20:00',
-    title: '事故发生',
-    description: '国恩老年公寓发生火灾',
+    time: '2025-04-08 21:15',
+    title: '火灾发生',
+    description: '承德市隆化县国恩老年公寓6号楼302房间发生火灾，与电动防褥疮气床垫相连的移动插排电源线短路，引燃周围衣物等可燃物',
     type: 'danger',
-    icon: 'el-icon-warning'
+    icon: 'el-icon-warning',
+    isMajor: true
   },
   {
-    time: '2025-04-08 20:30',
-    title: '救援启动',
-    description: '当地消防部门接到报警并赶赴现场',
+    time: '2025-04-08 21:20',
+    title: '火势蔓延',
+    description: '火灾引燃室内衣柜、电视机、床上用品，高温烟气进入吊顶后快速向其他房间蔓延',
+    type: 'danger',
+    icon: 'el-icon-warning',
+    isMajor: false
+  },
+  {
+    time: '2025-04-08 21:25',
+    title: '报警救援',
+    description: '有人发现火灾并报警，当地消防部门接到报警并赶赴现场',
     type: 'warning',
-    icon: 'el-icon-s-flag'
+    icon: 'el-icon-s-flag',
+    isMajor: true
   },
   {
-    time: '2025-04-09 00:00',
+    time: '2025-04-08 21:30',
+    title: '救援展开',
+    description: '消防队员到达现场，开始灭火和人员疏散工作',
+    type: 'warning',
+    icon: 'el-icon-s-flag',
+    isMajor: false
+  },
+  {
+    time: '2025-04-08 23:00',
     title: '明火扑灭',
-    description: '经过数小时扑救，明火被扑灭',
+    description: '经过数小时扑救，现场明火被扑灭',
     type: 'info',
-    icon: 'el-icon-finished'
+    icon: 'el-icon-finished',
+    isMajor: true
+  },
+  {
+    time: '2025-04-09 00:30',
+    title: '人员搜救',
+    description: '消防队员继续搜救被困人员，确认伤亡情况',
+    type: 'info',
+    icon: 'el-icon-search',
+    isMajor: false
   },
   {
     time: '2025-04-09 08:00',
-    title: '事故调查',
-    description: '成立事故调查组，开始调查',
+    title: '事故调查启动',
+    description: '河北省政府成立事故调查组，开始调查工作',
     type: 'primary',
-    icon: 'el-icon-search'
+    icon: 'el-icon-search',
+    isMajor: true
+  },
+  {
+    time: '2025-04-09 10:00',
+    title: '负责人控制',
+    description: '国恩老年公寓相关负责人被公安机关控制',
+    type: 'info',
+    icon: 'el-icon-document',
+    isMajor: false
+  },
+  {
+    time: '2025-04-09 14:00',
+    title: '伤者救治',
+    description: '19名未受伤人员被送医观察，受伤人员得到救治',
+    type: 'info',
+    icon: 'el-icon-finished',
+    isMajor: false
+  },
+  {
+    time: '2025-04-10',
+    title: '国务院督办',
+    description: '国务院安委会对事故实施挂牌督办',
+    type: 'primary',
+    icon: 'el-icon-s-flag',
+    isMajor: true
   },
   {
     time: '2025-04-15',
-    title: '调查报告',
-    description: '事故调查报告公布',
+    title: '初步调查',
+    description: '调查组完成初步调查，确定事故直接原因',
+    type: 'info',
+    icon: 'el-icon-search',
+    isMajor: false
+  },
+  {
+    time: '2025-12-30',
+    title: '调查报告发布',
+    description: '河北省消防救援总队发布事故调查报告，认定为重大生产安全责任事故，21人被移送司法机关，45名公职人员被追责问责',
     type: 'success',
-    icon: 'el-icon-document'
+    icon: 'el-icon-document',
+    isMajor: true
   }
 ])
 
@@ -578,6 +725,38 @@ const graphContainer = ref(null)
 const mermaidCode = ref('')
 const mermaidContainer = ref(null)
 
+// 进入编辑模式时转换时间格式
+const convertTimesToDate = () => {
+  accidentTimeline.value.forEach(event => {
+    if (typeof event.time === 'string') {
+      event.time = new Date(event.time)
+    }
+    if (event.subEvents && event.subEvents.length > 0) {
+      event.subEvents.forEach(subEvent => {
+        if (typeof subEvent.time === 'string') {
+          subEvent.time = new Date(subEvent.time)
+        }
+      })
+    }
+  })
+}
+
+// 编辑模式相关
+const isEditMode = ref(true)
+
+// 初始化时转换时间格式
+convertTimesToDate()
+
+// 处理编辑模式切换
+const handleEditModeChange = (value) => {
+  console.log('编辑模式切换:', value ? '编辑模式' : '锁定模式')
+  if (value) {
+    // 进入编辑模式时转换时间格式
+    convertTimesToDate()
+  }
+  // 实际项目中这里可以添加保存逻辑
+}
+
 // 加载事故详情
 const loadAccidentDetail = (id) => {
   // 这里可以从API获取详细信息
@@ -590,6 +769,7 @@ const loadAccidentDetail = (id) => {
       description: '国恩老年公寓发生火灾',
       type: 'danger',
       icon: 'el-icon-warning',
+      isMajor: true,
       subEvents: [
         {
           time: '2025-04-08 20:05',
@@ -606,6 +786,7 @@ const loadAccidentDetail = (id) => {
       description: '当地消防部门接到报警并赶赴现场',
       type: 'warning',
       icon: 'el-icon-s-flag',
+      isMajor: true,
       subEvents: [
         {
           time: '2025-04-08 20:35',
@@ -628,23 +809,29 @@ const loadAccidentDetail = (id) => {
       title: '明火扑灭',
       description: '经过数小时扑救，明火被扑灭',
       type: 'info',
-      icon: 'el-icon-finished'
+      icon: 'el-icon-finished',
+      isMajor: true
     },
     {
       time: '2025-04-09 08:00',
       title: '事故调查',
       description: '成立事故调查组，开始调查',
       type: 'primary',
-      icon: 'el-icon-search'
+      icon: 'el-icon-search',
+      isMajor: true
     },
     {
       time: '2025-04-15',
       title: '调查报告',
       description: '事故调查报告公布',
       type: 'success',
-      icon: 'el-icon-document'
+      icon: 'el-icon-document',
+      isMajor: true
     }
   ]
+  
+  // 转换时间格式
+  convertTimesToDate()
 }
 
 // 获取事故等级样式
@@ -683,7 +870,64 @@ const addTimelineEvent = () => {
     title: '',
     description: '',
     type: 'info',
-    icon: 'el-icon-info'
+    icon: 'el-icon-info',
+    isMajor: false
+  }
+  editingEventIndex.value = -1
+  editingSubEventIndex.value = -1
+  eventDialogVisible.value = true
+}
+
+// 添加重大节点事件
+const addMajorEvent = () => {
+  eventDialogTitle.value = '添加重大节点'
+  eventForm.value = {
+    time: new Date(),
+    title: '',
+    description: '',
+    type: 'primary',
+    icon: 'el-icon-s-flag',
+    isMajor: true
+  }
+  editingEventIndex.value = -1
+  editingSubEventIndex.value = -1
+  eventDialogVisible.value = true
+}
+
+// 在指定事件前添加新事件
+const addEventBefore = (eventIndex) => {
+  eventDialogTitle.value = '在前面添加环节'
+  const targetEvent = accidentTimeline.value[eventIndex]
+  // 设置时间为目标事件时间的前10分钟
+  const targetTime = new Date(targetEvent.time)
+  targetTime.setMinutes(targetTime.getMinutes() - 10)
+  eventForm.value = {
+    time: targetTime,
+    title: '',
+    description: '',
+    type: 'info',
+    icon: 'el-icon-info',
+    isMajor: false
+  }
+  editingEventIndex.value = -1
+  editingSubEventIndex.value = -1
+  eventDialogVisible.value = true
+}
+
+// 在指定事件后添加新事件
+const addEventAfter = (eventIndex) => {
+  eventDialogTitle.value = '在后面添加环节'
+  const targetEvent = accidentTimeline.value[eventIndex]
+  // 设置时间为目标事件时间的后10分钟
+  const targetTime = new Date(targetEvent.time)
+  targetTime.setMinutes(targetTime.getMinutes() + 10)
+  eventForm.value = {
+    time: targetTime,
+    title: '',
+    description: '',
+    type: 'info',
+    icon: 'el-icon-info',
+    isMajor: false
   }
   editingEventIndex.value = -1
   editingSubEventIndex.value = -1
@@ -705,10 +949,51 @@ const addSubEvent = (eventIndex) => {
   eventDialogVisible.value = true
 }
 
+// 在指定子事件前添加新子事件
+const addSubEventBefore = (eventIndex, subEventIndex) => {
+  eventDialogTitle.value = '在前面添加子环节'
+  const targetSubEvent = accidentTimeline.value[eventIndex].subEvents[subEventIndex]
+  // 设置时间为目标子事件时间的前5分钟
+  const targetTime = new Date(targetSubEvent.time)
+  targetTime.setMinutes(targetTime.getMinutes() - 5)
+  eventForm.value = {
+    time: targetTime,
+    title: '',
+    description: '',
+    type: 'info',
+    icon: 'el-icon-info'
+  }
+  editingEventIndex.value = eventIndex
+  editingSubEventIndex.value = -1
+  eventDialogVisible.value = true
+}
+
+// 在指定子事件后添加新子事件
+const addSubEventAfter = (eventIndex, subEventIndex) => {
+  eventDialogTitle.value = '在后面添加子环节'
+  const targetSubEvent = accidentTimeline.value[eventIndex].subEvents[subEventIndex]
+  // 设置时间为目标子事件时间的后5分钟
+  const targetTime = new Date(targetSubEvent.time)
+  targetTime.setMinutes(targetTime.getMinutes() + 5)
+  eventForm.value = {
+    time: targetTime,
+    title: '',
+    description: '',
+    type: 'info',
+    icon: 'el-icon-info'
+  }
+  editingEventIndex.value = eventIndex
+  editingSubEventIndex.value = -1
+  eventDialogVisible.value = true
+}
+
 // 编辑事件
 const editEvent = (eventIndex) => {
   eventDialogTitle.value = '编辑环节'
-  eventForm.value = { ...accidentTimeline.value[eventIndex] }
+  const event = { ...accidentTimeline.value[eventIndex] }
+  // 将字符串时间转换为 Date 对象
+  event.time = new Date(event.time)
+  eventForm.value = event
   editingEventIndex.value = eventIndex
   editingSubEventIndex.value = -1
   eventDialogVisible.value = true
@@ -717,7 +1002,10 @@ const editEvent = (eventIndex) => {
 // 编辑子事件
 const editSubEvent = (eventIndex, subEventIndex) => {
   eventDialogTitle.value = '编辑子环节'
-  eventForm.value = { ...accidentTimeline.value[eventIndex].subEvents[subEventIndex] }
+  const subEvent = { ...accidentTimeline.value[eventIndex].subEvents[subEventIndex] }
+  // 将字符串时间转换为 Date 对象
+  subEvent.time = new Date(subEvent.time)
+  eventForm.value = subEvent
   editingEventIndex.value = eventIndex
   editingSubEventIndex.value = subEventIndex
   eventDialogVisible.value = true
@@ -733,20 +1021,46 @@ const deleteSubEvent = (eventIndex, subEventIndex) => {
   accidentTimeline.value[eventIndex].subEvents.splice(subEventIndex, 1)
 }
 
+// 按时间排序事件
+const sortEventsByTime = (events) => {
+  return events.sort((a, b) => {
+    return new Date(a.time).getTime() - new Date(b.time).getTime()
+  })
+}
+
+// 格式化时间为字符串
+const formatTime = (date) => {
+  if (!(date instanceof Date)) {
+    date = new Date(date)
+  }
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
 // 保存事件
 const saveEvent = () => {
+  // 复制表单数据并格式化时间
+  const eventData = { ...eventForm.value }
+  eventData.time = formatTime(eventData.time)
+  
   if (editingSubEventIndex.value === -1) {
     // 保存主事件
     if (editingEventIndex.value === -1) {
       // 添加新事件
       accidentTimeline.value.push({
-        ...eventForm.value,
+        ...eventData,
         subEvents: []
       })
     } else {
       // 更新现有事件
-      accidentTimeline.value[editingEventIndex.value] = { ...eventForm.value }
+      accidentTimeline.value[editingEventIndex.value] = { ...eventData }
     }
+    // 对主事件按时间排序
+    accidentTimeline.value = sortEventsByTime(accidentTimeline.value)
   } else {
     // 保存子事件
     if (!accidentTimeline.value[editingEventIndex.value].subEvents) {
@@ -754,13 +1068,99 @@ const saveEvent = () => {
     }
     if (editingSubEventIndex.value === -1) {
       // 添加新子事件
-      accidentTimeline.value[editingEventIndex.value].subEvents.push({ ...eventForm.value })
+      accidentTimeline.value[editingEventIndex.value].subEvents.push({ ...eventData })
     } else {
       // 更新现有子事件
-      accidentTimeline.value[editingEventIndex.value].subEvents[editingSubEventIndex.value] = { ...eventForm.value }
+      accidentTimeline.value[editingEventIndex.value].subEvents[editingSubEventIndex.value] = { ...eventData }
     }
+    // 对子事件按时间排序
+    accidentTimeline.value[editingEventIndex.value].subEvents = sortEventsByTime(accidentTimeline.value[editingEventIndex.value].subEvents)
   }
   eventDialogVisible.value = false
+}
+
+// 整理事件层级，将非重大节点转为二级子节点
+const organizeEventHierarchy = () => {
+  const majorEvents = []
+  
+  // 首先按时间排序所有事件
+  const sortedEvents = sortEventsByTime([...accidentTimeline.value])
+  
+  sortedEvents.forEach(event => {
+    if (event.isMajor) {
+      // 重大节点作为主事件
+      if (!event.subEvents) {
+        event.subEvents = []
+      }
+      majorEvents.push(event)
+    } else {
+      // 非重大节点作为最近的重大节点的子节点
+      if (majorEvents.length > 0) {
+        const lastMajorEvent = majorEvents[majorEvents.length - 1]
+        if (!lastMajorEvent.subEvents) {
+          lastMajorEvent.subEvents = []
+        }
+        lastMajorEvent.subEvents.push(event)
+        // 对子事件按时间排序
+        lastMajorEvent.subEvents = sortEventsByTime(lastMajorEvent.subEvents)
+      } else {
+        // 如果还没有重大节点，暂时作为主事件
+        event.subEvents = []
+        majorEvents.push(event)
+      }
+    }
+  })
+  
+  // 更新时间线数据
+  accidentTimeline.value = majorEvents
+}
+
+// 保存所有修改
+const saveAllChanges = () => {
+  // 格式化所有时间为字符串
+  accidentTimeline.value.forEach(event => {
+    event.time = formatTime(event.time)
+    if (event.subEvents && event.subEvents.length > 0) {
+      event.subEvents.forEach(subEvent => {
+        subEvent.time = formatTime(subEvent.time)
+      })
+      // 对子事件按时间排序
+      event.subEvents = sortEventsByTime(event.subEvents)
+    }
+  })
+  
+  // 整理事件层级
+  organizeEventHierarchy()
+  
+  console.log('保存所有修改完成')
+}
+
+// 刷新排序
+const refreshTimeline = () => {
+  // 首先将所有子事件提取出来，与主事件一起排序
+  const allEvents = []
+  accidentTimeline.value.forEach(event => {
+    allEvents.push(event)
+    if (event.subEvents && event.subEvents.length > 0) {
+      event.subEvents.forEach(subEvent => {
+        allEvents.push(subEvent)
+      })
+    }
+  })
+  
+  // 按时间排序所有事件
+  const sortedEvents = sortEventsByTime(allEvents)
+  
+  // 重新构建时间线
+  accidentTimeline.value = []
+  sortedEvents.forEach(event => {
+    accidentTimeline.value.push(event)
+  })
+  
+  // 整理事件层级
+  organizeEventHierarchy()
+  
+  console.log('时间线排序刷新完成')
 }
 
 // 添加照片
@@ -880,8 +1280,51 @@ const generateLogicDiagram = () => {
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .accident-selector .el-select {
   width: 300px;
+}
+
+/* 基本信息网格布局 */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.info-grid-item {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #409eff;
+  transition: all 0.3s ease;
+}
+
+.info-grid-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+}
+
+.info-grid-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 4px;
+}
+
+.info-grid-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .analysis-content {
@@ -947,42 +1390,7 @@ const generateLogicDiagram = () => {
   border: 1px solid #c3e6cb;
 }
 
-/* 基本信息样式 */
-.info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-}
 
-.info-list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #409eff;
-  transition: all 0.3s ease;
-}
-
-.info-list-item:hover {
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  background: #ffffff;
-}
-
-.info-list-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #606266;
-}
-
-.info-list-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-}
 
 .accident-summary {
   margin-top: 20px;
@@ -1009,85 +1417,80 @@ const generateLogicDiagram = () => {
   padding: 20px 0;
 }
 
-.el-timeline-item {
-  margin-bottom: 24px;
-  position: relative;
+/* 批量编辑模式样式 */
+.batch-edit-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-/* 时间线箭头样式 */
-.el-timeline-item::before {
-  content: '';
-  position: absolute;
-  left: 10px;
-  top: 20px;
-  bottom: -24px;
-  width: 2px;
-  background: linear-gradient(to bottom, #409eff, #69c0ff);
-  z-index: 0;
-}
-
-.el-timeline-item:last-child::before {
-  display: none;
-}
-
-.timeline-content {
-  padding: 16px 20px;
+.event-edit-card {
+  padding: 20px;
   background: #f8f9fa;
   border-radius: 8px;
   border-left: 4px solid #409eff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
-  position: relative;
-  z-index: 1;
 }
 
-.timeline-content:hover {
-  transform: translateX(8px);
+.event-edit-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   background: #ffffff;
 }
 
-.timeline-header {
+.event-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
-.timeline-header h4 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-  flex: 1;
+.event-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.timeline-actions {
+.event-title-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.event-time-input {
+  width: 200px;
+}
+
+.event-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.timeline-content p {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #606266;
-  margin: 0 0 16px 0;
+.event-type-select,
+.event-icon-select {
+  width: 120px;
 }
 
-/* 子时间线样式 */
-.sub-timeline {
+.event-description-input {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+/* 子环节编辑样式 */
+.sub-events-container {
   margin-top: 16px;
   margin-left: 20px;
   padding-left: 20px;
   border-left: 2px dashed #dcdfe6;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.sub-timeline .el-timeline-item {
-  margin-bottom: 16px;
-}
-
-.sub-timeline-content {
-  padding: 12px 16px;
+.sub-event-edit-card {
+  padding: 16px;
   background: #ffffff;
   border-radius: 8px;
   border-left: 4px solid #67c23a;
@@ -1095,19 +1498,246 @@ const generateLogicDiagram = () => {
   transition: all 0.3s ease;
 }
 
-.sub-timeline-content:hover {
+.sub-event-edit-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sub-event-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sub-event-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sub-event-title-input {
+  flex: 1;
+  min-width: 150px;
+}
+
+.sub-event-time-input {
+  width: 180px;
+}
+
+.sub-event-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sub-event-type-select,
+.sub-event-icon-select {
+  width: 100px;
+}
+
+.sub-event-description-input {
+  width: 100%;
+}
+
+/* 事件发展树样式 */
+.event-tree-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 20px;
+}
+
+.event-tree-item {
+  display: flex;
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.event-tree-node {
+  position: relative;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.node-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #409eff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px #409eff;
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  z-index: 1;
+}
+
+.major-node-dot {
+  width: 16px;
+  height: 16px;
+  background: #f56c6c;
+  box-shadow: 0 0 0 2px #f56c6c;
+  left: 2px;
+  top: 4px;
+}
+
+.node-line {
+  width: 2px;
+  background: #409eff;
+  position: absolute;
+  left: 9px;
+  top: 20px;
+  bottom: -24px;
+}
+
+.major-node-line {
+  background: #f56c6c;
+  left: 9px;
+}
+
+.event-tree-content {
+  flex: 1;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #409eff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  margin-left: 16px;
+  position: relative;
+}
+
+.event-tree-content:hover {
+  transform: translateX(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+}
+
+.major-event-content {
+  border-left: 4px solid #f56c6c;
+  background: #fef0f0;
+}
+
+.major-event-content:hover {
+  background: #ffffff;
+}
+
+.event-tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-tree-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.event-tree-title h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.major-event-badge {
+  padding: 2px 8px;
+  background: #f56c6c;
+  color: #ffffff;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.event-tree-time {
+  font-size: 14px;
+  color: #909399;
+  white-space: nowrap;
+}
+
+.event-tree-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #606266;
+  margin: 0 0 16px 0;
+}
+
+/* 子事件树样式 */
+.sub-event-tree {
+  margin-top: 16px;
+  margin-left: 20px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sub-event-tree-item {
+  display: flex;
+  position: relative;
+}
+
+.sub-event-tree-node {
+  position: relative;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.sub-node-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #67c23a;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px #67c23a;
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  z-index: 1;
+}
+
+.sub-node-line {
+  width: 2px;
+  background: #dcdfe6;
+  position: absolute;
+  left: 9px;
+  top: 16px;
+  bottom: -16px;
+}
+
+.sub-event-tree-content {
+  flex: 1;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 8px;
+  border-left: 4px solid #67c23a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  margin-left: 16px;
+}
+
+.sub-event-tree-content:hover {
   transform: translateX(4px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.sub-timeline-header {
+.sub-event-tree-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.sub-timeline-header h5 {
+.sub-event-tree-header h5 {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
@@ -1115,16 +1745,31 @@ const generateLogicDiagram = () => {
   flex: 1;
 }
 
-.sub-timeline-actions {
-  display: flex;
-  gap: 4px;
+.sub-event-tree-time {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
 }
 
-.sub-timeline-content p {
+.sub-event-tree-description {
   font-size: 13px;
   line-height: 1.5;
   color: #606266;
   margin: 0;
+}
+
+/* 重大事件编辑卡片样式 */
+.major-event-card {
+  border-left: 4px solid #f56c6c;
+  background: #fef0f0;
+}
+
+.major-event-card:hover {
+  background: #ffffff;
+}
+
+.event-major-checkbox {
+  margin-left: 16px;
 }
 
 /* 报告样式 */
