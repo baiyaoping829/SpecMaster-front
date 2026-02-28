@@ -12,8 +12,8 @@
             <el-tab-pane label="首页" name="home">
               <router-link to="/" class="tab-link">首页</router-link>
             </el-tab-pane>
-            <el-tab-pane label="规标大数据" name="spec-data">
-              <router-link to="/spec-data" class="tab-link">规标大数据</router-link>
+            <el-tab-pane label="规范标准" name="spec-data">
+              <router-link to="/spec-data" class="tab-link">规范标准</router-link>
             </el-tab-pane>
             <el-tab-pane label="规范智阅" name="spec-reader">
               <router-link to="/spec-reader" class="tab-link">规范智阅</router-link>
@@ -36,8 +36,8 @@
             <el-tab-pane label="工程知识" name="knowledge-base">
               <router-link to="/knowledge-base" class="tab-link">工程知识</router-link>
             </el-tab-pane>
-            <el-tab-pane label="专家管理" name="company-expert">
-              <router-link to="/company-expert" class="tab-link">专家管理</router-link>
+            <el-tab-pane label="工程管理" name="company-expert">
+              <router-link to="/company-expert" class="tab-link">工程管理</router-link>
             </el-tab-pane>
             <el-tab-pane label="权限设置" name="user-role">
               <router-link to="/user-role" class="tab-link">权限设置</router-link>

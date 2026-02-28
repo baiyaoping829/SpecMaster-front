@@ -24,7 +24,7 @@
           <div class="feature-icon">
             <el-icon><DataAnalysis /></el-icon>
           </div>
-          <h3>规标大数据</h3>
+          <h3>规范标准</h3>
           <p>统一管理工程相关的规范标准，包括规范标准的名称、编号、用途、类型、等级、是否有效、实施日期、编制单位等信息，以及每个规范标准的历史版本和相关说明、pdf、html、docx等不同格式的文件。</p>
           <router-link to="/spec-data" class="feature-link">查看详情</router-link>
         </div>
@@ -35,7 +35,7 @@
             <el-icon><Reading /></el-icon>
           </div>
           <h3>规范智阅</h3>
-          <p>在规标大数据模块中选择多个规范生成阅览主题知识库，可对目标规范标准进行单选或多选进行同步阅览，并利用大语言模型进行目标规范标准的同步翻译、摘要提取、导图生成、知识图谱生成、公式识别、有声阅读等功能。</p>
+          <p>在规范标准模块中选择多个规范生成阅览主题知识库，可对目标规范标准进行单选或多选进行同步阅览，并利用大语言模型进行目标规范标准的同步翻译、摘要提取、导图生成、知识图谱生成、公式识别、有声阅读等功能。</p>
           <router-link to="/spec-reader" class="feature-link">查看详情</router-link>
         </div>
 
@@ -45,7 +45,7 @@
             <el-icon><HelpFilled /></el-icon>
           </div>
           <h3>规范智答</h3>
-          <p>在规标大数据模块中选择多个规范生成问答主题知识库，然后加载不同主题的知识库进行基于大语言模型的问题，获得相关的信息。</p>
+          <p>在规范标准模块中选择多个规范生成问答主题知识库，然后加载不同主题的知识库进行基于大语言模型的问题，获得相关的信息。</p>
           <router-link to="/spec-qa" class="feature-link">查看详情</router-link>
         </div>
 
@@ -55,7 +55,7 @@
             <el-icon><Check /></el-icon>
           </div>
           <h3>方案智审</h3>
-          <p>在规标大数据模块中选择多个规范生成审查依据标准库，然后上传目标待审查的施工方案，提出项目概要、编制依据、方案的用途、关键词等信息，然后根据规范标准对施工方案利用大语言模型的理解和推理能力进行评审。</p>
+          <p>在规范标准模块中选择多个规范生成审查依据标准库，然后上传目标待审查的施工方案，提出项目概要、编制依据、方案的用途、关键词等信息，然后根据规范标准对施工方案利用大语言模型的理解和推理能力进行评审。</p>
           <router-link to="/plan-review" class="feature-link">查看详情</router-link>
         </div>
 
@@ -65,7 +65,7 @@
             <el-icon><Warning /></el-icon>
           </div>
           <h3>风险智控</h3>
-          <p>对上传的施工安全专项方案，根据风险管理相关规范进行风险识别、风险评估、风险处理、专家评审、方案报批、项目归档等，该流程同样需要基于规标大数据模块的选择的多个风险管理控制、安全法规等规范标准生产的风险识别相关规范、类似事故案例等组成的知识库。</p>
+          <p>对上传的施工安全专项方案，根据风险管理相关规范进行风险识别、风险评估、风险处理、专家评审、方案报批、项目归档等，该流程同样需要基于规范标准模块的选择的多个风险管理控制、安全法规等规范标准生产的风险识别相关规范、类似事故案例等组成的知识库。</p>
           <router-link to="/risk-control" class="feature-link">查看详情</router-link>
         </div>
 
@@ -152,7 +152,7 @@
           <h4>快速链接</h4>
           <ul>
             <li><router-link to="/">首页</router-link></li>
-            <li><router-link to="/spec-data">规标大数据</router-link></li>
+            <li><router-link to="/spec-data">规范标准</router-link></li>
             <li><router-link to="/spec-reader">规范智阅</router-link></li>
             <li><router-link to="/spec-qa">规范智答</router-link></li>
           </ul>

@@ -986,7 +986,7 @@ interface SpecReference {
   clauseNumber: string; // 条款编号
   clauseContent?: string; // 条款具体内容
   explanation?: string; // 条文说明
-  isLinked?: boolean; // 是否已链接到规标大数据
+  isLinked?: boolean; // 是否已链接到规范标准
   linkedSpecId?: string; // 链接的规范ID
 }
 

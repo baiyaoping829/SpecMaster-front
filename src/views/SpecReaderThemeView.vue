@@ -175,7 +175,7 @@
             </template>
           </el-upload>
           <el-checkbox v-model="addSpecForm.addToSpecData" style="margin-top: 16px;">
-            将上传的文档添加到规标大数据模块
+            将上传的文档添加到规范标准模块
           </el-checkbox>
           <el-button type="primary" style="margin-top: 16px;" @click="handleAddUploadedDocs">
             <el-icon><plus /></el-icon>
@@ -728,9 +728,9 @@ const saveSpecsToTheme = () => {
         }
       })
       
-      // 如果需要添加到规标大数据模块
+      // 如果需要添加到规范标准模块
       if (addSpecForm.addToSpecData) {
-        // 打开规标大数据模块的上传页面
+        // 打开规范标准模块的上传页面
         setTimeout(() => {
           window.open('/spec-data/upload', '_blank', 'width=800,height=600')
         }, 1000)
@@ -811,9 +811,9 @@ const handleAddUploadedDocs = () => {
       }
     })
     
-    // 如果需要添加到规标大数据模块
+    // 如果需要添加到规范标准模块
     if (addSpecForm.addToSpecData) {
-      // 打开规标大数据模块的上传页面
+      // 打开规范标准模块的上传页面
       setTimeout(() => {
         window.open('/spec-data/upload', '_blank', 'width=800,height=600')
       }, 1000)

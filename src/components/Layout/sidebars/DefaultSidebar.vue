@@ -14,7 +14,7 @@
       </el-menu-item>
       <el-menu-item index="/spec-data">
         <el-icon><Document /></el-icon>
-        <span>规标大数据</span>
+        <span>规范标准</span>
       </el-menu-item>
       <el-menu-item index="/spec-reader">
         <el-icon><Reading /></el-icon>
@@ -46,7 +46,7 @@
       </el-menu-item>
       <el-menu-item index="/company-expert">
         <el-icon><UserFilled /></el-icon>
-        <span>专家管理</span>
+        <span>工程管理</span>
       </el-menu-item>
       <el-menu-item index="/user-role">
         <el-icon><Setting /></el-icon>

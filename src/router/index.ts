@@ -12,7 +12,7 @@ const router = createRouter({
       path: '/spec-data',
       name: 'SpecData',
       component: () => import('../views/SpecDataView.vue'),
-      meta: { title: '规标大数据' }
+      meta: { title: '规范标准' }
     },
     {
       path: '/spec-data/upload',

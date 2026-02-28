@@ -1,7 +1,7 @@
 <template>
   <div class="spec-data-view">
     <div class="page-header">
-      <h2>规标大数据</h2>
+      <h2>规范标准</h2>
       <div class="header-actions">
         <el-button type="primary" @click="handleUpload">
           <el-icon><upload /></el-icon>
