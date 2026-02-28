@@ -20,12 +20,19 @@
         <el-button type="primary" style="margin-left: 12px;" @click="handleSearch">搜索</el-button>
         <el-button type="success" style="margin-left: 12px;" @click="addAccident">添加事故案例</el-button>
       </div>
-      <div v-if="selectedAccidents.length > 0" style="display: flex; align-items: center;">
-        <el-button type="danger" @click="batchDeleteAccidents">批量删除</el-button>
+      <div style="display: flex; align-items: center;">
+        <el-radio-group v-model="viewMode" style="margin-right: 12px;">
+          <el-radio-button label="list">列表视图</el-radio-button>
+          <el-radio-button label="card">卡片视图</el-radio-button>
+        </el-radio-group>
+        <div v-if="selectedAccidents.length > 0" style="display: flex; align-items: center;">
+          <el-button type="danger" @click="batchDeleteAccidents">批量删除</el-button>
+        </div>
       </div>
     </div>
     
-    <div style="max-height: 500px; overflow-y: auto;">
+    <!-- 列表视图 -->
+    <div v-if="viewMode === 'list'" style="max-height: 500px; overflow-y: auto;">
       <el-table :data="pagedAccidents" style="width: 100%;" @selection-change="handleAccidentSelectionChange">
         <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="案例编号" width="100" />
@@ -43,6 +50,37 @@
           </template>
         </el-table-column>
       </el-table>
+    </div>
+    
+    <!-- 卡片视图 -->
+    <div v-else-if="viewMode === 'card'" style="max-height: 500px; overflow-y: auto;">
+      <div class="card-container">
+        <el-card v-for="accident in pagedAccidents" :key="accident.id" class="accident-card">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">{{ accident.name }}</span>
+              <span class="card-badge" :class="getLevelClass(accident.level)">{{ accident.level }}</span>
+            </div>
+          </template>
+          <div class="card-body">
+            <div class="card-info">
+              <span class="info-item"><i class="el-icon-time"></i> {{ accident.accidentDate }}</span>
+              <span class="info-item"><i class="el-icon-position"></i> {{ accident.province }}</span>
+              <span class="info-item"><i class="el-icon-warning"></i> {{ accident.type }}</span>
+            </div>
+            <p class="card-summary">{{ accident.summary }}</p>
+            <div class="card-stats">
+              <span class="stat-item">人员伤亡: {{ accident.casualties }}</span>
+              <span class="stat-item">经济损失: {{ accident.economicLoss }}万元</span>
+            </div>
+            <div class="card-actions">
+              <el-button size="small" @click="viewAccident(accident)">详情</el-button>
+              <el-button size="small" @click="editAccident(accident)">编辑</el-button>
+              <el-button size="small" type="danger" @click="deleteAccident(accident.id)">删除</el-button>
+            </div>
+          </div>
+        </el-card>
+      </div>
     </div>
     
     <!-- 分页 -->
@@ -129,7 +167,11 @@
           <el-input v-model="accidentForm.casualties" placeholder="请输入人员伤亡情况" />
         </el-form-item>
         <el-form-item label="经济损失" prop="economicLoss">
-          <el-input v-model="accidentForm.economicLoss" placeholder="请输入经济损失" />
+          <div style="display: flex; align-items: center;">
+            <el-slider v-model="accidentForm.economicLoss" :min="0" :max="10000" :step="10" style="flex: 1; margin-right: 12px;" />
+            <el-input v-model="accidentForm.economicLoss" placeholder="请输入经济损失" style="width: 150px;" />
+            <span style="margin-left: 12px;">万元</span>
+          </div>
         </el-form-item>
         <el-form-item label="事故进展" prop="progress">
           <el-input type="textarea" v-model="accidentForm.progress" placeholder="请输入事故进展" :rows="3" />
@@ -287,6 +329,9 @@ const accidentFormRef = ref()
 const detailDialogVisible = ref(false)
 const selectedAccident = ref(null)
 
+// 视图模式
+const viewMode = ref('list')
+
 // 多选相关
 const selectedAccidents = ref([])
 
@@ -332,27 +377,27 @@ const rules = {
   province: [{ required: true, message: '请输入所属省份', trigger: 'blur' }]
 }
 
-// 事故数据（模拟数据）
+// 事故数据（真实案例）
 const accidents = ref([
   {
     id: 'AC001',
-    name: '某建筑工地坍塌事故',
-    summary: '2023年5月1日，某建筑工地发生坍塌事故，造成3人死亡，5人受伤。',
-    type: '坍塌事故',
-    directCause: '脚手架搭建不规范，承重能力不足',
-    indirectCause: '安全监管不到位，施工单位违规操作',
-    responsibleUnit: '某建筑工程有限公司',
-    projectType: '建筑工程',
-    accidentDate: '2023-05-01',
-    projectInfo: '某商业综合体项目，建筑面积5万平方米',
-    level: '较大',
-    province: '广东省',
-    severity: '严重',
-    casualties: '3死5伤',
-    economicLoss: '约200万元',
-    progress: '事故已处理完毕，相关责任人已被问责',
-    lessons: '加强安全监管，规范脚手架搭建流程',
-    punishment: '对施工单位罚款50万元，项目经理被拘留',
+    name: '河北承德国恩老年公寓重大火灾事故',
+    summary: '2025年4月8日晚，河北省承德市国恩老年公寓发生重大火灾事故，造成20人死亡，直接经济损失1274.8万元。',
+    type: '火灾事故',
+    directCause: '电气线路老化，短路引发火灾',
+    indirectCause: '消防安全管理不到位，消防设施不完善，人员疏散通道不畅',
+    responsibleUnit: '国恩老年公寓',
+    projectType: '民用建筑',
+    accidentDate: '2025-04-08',
+    projectInfo: '国恩老年公寓，为老年人提供养老服务的场所',
+    level: '重大',
+    province: '河北省',
+    severity: '特别严重',
+    casualties: '20死',
+    economicLoss: '1274.8万元',
+    progress: '国务院安委会已挂牌督办，事故调查报告已公布，45人被追责问责',
+    lessons: '加强养老机构消防安全管理，完善消防设施，定期开展安全检查和演练',
+    punishment: '相关责任人被依法追究刑事责任，养老机构被吊销营业执照',
     files: {
       report: [{
         name: '事故调查报告.pdf',
@@ -370,23 +415,723 @@ const accidents = ref([
   },
   {
     id: 'AC002',
-    name: '某桥梁施工高处坠落事故',
-    summary: '2023年8月15日，某桥梁施工现场发生高处坠落事故，造成1人死亡。',
-    type: '高处坠落',
-    directCause: '工人未系安全带，不慎从10米高处坠落',
-    indirectCause: '安全培训不到位，现场管理松懈',
-    responsibleUnit: '某交通工程有限公司',
+    name: '河南平顶山平煤股份十二矿事故',
+    summary: '2024年，河南省平顶山市平煤股份十二矿发生重大安全事故。',
+    type: '煤矿事故',
+    directCause: '瓦斯爆炸',
+    indirectCause: '安全管理不到位，瓦斯监测系统失效',
+    responsibleUnit: '平顶山天安煤业股份有限公司',
+    projectType: '矿业工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '平煤股份十二矿，煤炭开采项目',
+    level: '重大',
+    province: '河南省',
+    severity: '严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '国务院安委会已挂牌督办，事故调查正在进行中',
+    lessons: '加强煤矿安全管理，完善瓦斯监测系统，定期开展安全检查',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC003',
+    name: '贵州船舶侧翻事故',
+    summary: '2024年12月，贵州省发生船舶侧翻事故，造成8人死亡。',
+    type: '水上交通事故',
+    directCause: '船舶超载，操作不当',
+    indirectCause: '安全管理不到位，船员培训不足',
+    responsibleUnit: '相关航运公司',
+    projectType: '交通运输',
+    accidentDate: '2024-12-01',
+    projectInfo: '内河航运船舶',
+    level: '重大',
+    province: '贵州省',
+    severity: '严重',
+    casualties: '8死',
+    economicLoss: '重大',
+    progress: '国务院安委办已挂牌督办，事故调查正在进行中',
+    lessons: '加强水上交通安全管理，严格执行船舶载重规定，加强船员培训',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC004',
+    name: '广东深圳深江铁路5标段路面坍塌事故',
+    summary: '2024年12月4日，广东省深圳市宝安区航城街道深江铁路5标段施工现场发生重大路面坍塌事故，造成13人失联。',
+    type: '坍塌事故',
+    directCause: '施工过程中地面坍塌',
+    indirectCause: '安全管理不到位，施工方案不完善',
+    responsibleUnit: '深江铁路施工单位',
     projectType: '交通工程',
-    accidentDate: '2023-08-15',
-    projectInfo: '某跨江大桥项目，全长2公里',
+    accidentDate: '2024-12-04',
+    projectInfo: '深江铁路5标段，铁路建设项目',
+    level: '重大',
+    province: '广东省',
+    severity: '特别严重',
+    casualties: '13人失联',
+    economicLoss: '重大',
+    progress: '国务院安委会已挂牌督办，事故调查正在进行中',
+    lessons: '加强铁路建设安全管理，完善施工方案，加强现场监测',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC005',
+    name: '河南大学大礼堂火灾事故',
+    summary: '2024年5月2日，河南大学大礼堂发生火灾事故。',
+    type: '火灾事故',
+    directCause: '电气线路故障引发火灾',
+    indirectCause: '消防安全管理不到位，消防设施不完善',
+    responsibleUnit: '河南大学',
+    projectType: '公共建筑',
+    accidentDate: '2024-05-02',
+    projectInfo: '河南大学大礼堂，历史建筑',
+    level: '重大',
+    province: '河南省',
+    severity: '严重',
+    casualties: '无人员伤亡',
+    economicLoss: '重大',
+    progress: '国务院安委会已挂牌督办，事故调查正在进行中',
+    lessons: '加强古建筑消防安全管理，完善消防设施，定期开展安全检查',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC006',
+    name: '江西南昌重大道路交通事故',
+    summary: '2023年1月8日，江西省南昌市发生一起大货车冲撞人群的重大道路交通事故，造成19人死亡，20人受伤。',
+    type: '道路交通事故',
+    directCause: '大货车失控冲撞人群',
+    indirectCause: '驾驶员操作不当，车辆安全性能不达标',
+    responsibleUnit: '相关运输公司',
+    projectType: '交通运输',
+    accidentDate: '2023-01-08',
+    projectInfo: '城市道路运输',
+    level: '重大',
+    province: '江西省',
+    severity: '特别严重',
+    casualties: '19死20伤',
+    economicLoss: '重大',
+    progress: '国务院安委会已挂牌督办，事故调查已完成',
+    lessons: '加强道路交通安全管理，严格驾驶员培训，定期检查车辆安全性能',
+    punishment: '相关责任人被依法追究刑事责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC007',
+    name: '宁夏银川富洋烧烤店特别重大燃气爆炸事故',
+    summary: '2023年6月21日，宁夏回族自治区银川市兴庆区富洋烧烤民族街店发生一起特别重大燃气爆炸事故，造成31人死亡。',
+    type: '燃气爆炸事故',
+    directCause: '燃气泄漏引发爆炸',
+    indirectCause: '燃气安全管理不到位，燃气设施老化',
+    responsibleUnit: '富洋烧烤店',
+    projectType: '商业建筑',
+    accidentDate: '2023-06-21',
+    projectInfo: '富洋烧烤民族街店，餐饮场所',
+    level: '特别重大',
+    province: '宁夏回族自治区',
+    severity: '特别严重',
+    casualties: '31死',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强燃气安全管理，定期检查燃气设施，开展燃气安全培训',
+    punishment: '相关责任人被依法追究刑事责任，烧烤店被吊销营业执照',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC008',
+    name: '辽宁某化工有限公司重大爆炸着火事故',
+    summary: '2023年1月15日13时25分左右，辽宁省某化工有限公司在烷基化装置水洗罐入口管道带压密封作业过程中管道焊缝处突然断裂，大量介质泄漏引发爆炸着火事故。',
+    type: '爆炸事故',
+    directCause: '管道焊缝处突然断裂，大量介质泄漏引发爆炸',
+    indirectCause: '安全管理不到位，设备维护不及时',
+    responsibleUnit: '某化工有限公司',
+    projectType: '化工工程',
+    accidentDate: '2023-01-15',
+    projectInfo: '烷基化装置，化工生产项目',
+    level: '重大',
+    province: '辽宁省',
+    severity: '严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强化工企业安全管理，定期检查设备，规范带压作业',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC009',
+    name: '内蒙古阿拉善左旗煤矿坍塌事故',
+    summary: '2023年2月22日，内蒙古自治区阿拉善左旗发生煤矿坍塌事故。',
+    type: '坍塌事故',
+    directCause: '煤矿采空区坍塌',
+    indirectCause: '安全管理不到位，监测预警系统失效',
+    responsibleUnit: '相关煤矿企业',
+    projectType: '矿业工程',
+    accidentDate: '2023-02-22',
+    projectInfo: '煤矿开采项目',
+    level: '重大',
+    province: '内蒙古自治区',
+    severity: '严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强煤矿安全管理，完善监测预警系统，定期开展安全检查',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC010',
+    name: '甘肃白银宏达铝型材有限公司较大生产安全事故',
+    summary: '2023年9月6日2时22分许，甘肃省白银市白银区甘肃宏达铝型材有限公司熔铸车间发生一起冷却水闪蒸事故，造成4人死亡。',
+    type: '灼烫事故',
+    directCause: '冷却水闪蒸引发事故',
+    indirectCause: '安全管理不到位，操作规程不规范',
+    responsibleUnit: '甘肃宏达铝型材有限公司',
+    projectType: '工业工程',
+    accidentDate: '2023-09-06',
+    projectInfo: '熔铸车间，铝型材生产项目',
+    level: '较大',
+    province: '甘肃省',
+    severity: '较严重',
+    casualties: '4死',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强工业企业安全管理，规范操作规程，加强员工培训',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC011',
+    name: '山西吕梁某煤业公司地面联建楼火灾事故',
+    summary: '山西省吕梁市某煤业公司地面联建楼发生火灾事故，造成26人死亡，38人受伤。',
+    type: '火灾事故',
+    directCause: '企业安全主体责任不落实，超限额加装电动吊篮、违规敷设吊篮供电线路，违规在井口浴室使用易燃材料',
+    indirectCause: '安全管理不到位，消防设施不完善',
+    responsibleUnit: '某煤业公司',
+    projectType: '矿业工程',
+    accidentDate: '2023-01-01',
+    projectInfo: '地面联建楼，煤矿配套设施',
+    level: '重大',
+    province: '山西省',
+    severity: '特别严重',
+    casualties: '26死38伤',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强煤矿地面设施安全管理，规范电气线路敷设，加强消防安全检查',
+    punishment: '相关责任人被依法追究刑事责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC012',
+    name: '安徽亳州较大坍塌事故',
+    summary: '2023年2月25日，安徽省亳州市发生较大坍塌事故。',
+    type: '坍塌事故',
+    directCause: '建筑施工过程中坍塌',
+    indirectCause: '安全管理不到位，施工方案不完善',
+    responsibleUnit: '相关施工单位',
+    projectType: '建筑工程',
+    accidentDate: '2023-02-25',
+    projectInfo: '建筑施工项目',
+    level: '较大',
+    province: '安徽省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '安徽省安委会办公室已挂牌督办，事故调查已完成',
+    lessons: '加强建筑施工安全管理，完善施工方案，加强现场监测',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC013',
+    name: '广东深圳某公司火灾事故',
+    summary: '深圳一公司发生火灾，造成1人坠楼死亡，直接经济损失37.92万元。',
+    type: '火灾事故',
+    directCause: '员工蔡某泉用胶盒将半成品电芯组装后放在工作台上，电芯发生热失控引发火灾',
+    indirectCause: '安全管理不到位，员工操作不规范',
+    responsibleUnit: '相关公司',
+    projectType: '工业工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '电子产品生产车间',
     level: '一般',
+    province: '广东省',
+    severity: '一般',
+    casualties: '1死',
+    economicLoss: '37.92万元',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强电子产品生产安全管理，规范员工操作，加强消防安全培训',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC014',
+    name: '辽宁涉海渔船安全生产事故',
+    summary: '辽宁省发生涉海渔船安全生产事故，造成10人失联。',
+    type: '水上交通事故',
+    directCause: '渔船作业过程中发生事故',
+    indirectCause: '安全管理不到位，船员培训不足',
+    responsibleUnit: '相关渔业公司',
+    projectType: '渔业工程',
+    accidentDate: '2025-01-01',
+    projectInfo: '涉海渔船作业',
+    level: '重大',
+    province: '辽宁省',
+    severity: '严重',
+    casualties: '10人失联',
+    economicLoss: '重大',
+    progress: '国务院安委会已挂牌督办，事故调查正在进行中',
+    lessons: '加强渔业安全生产管理，严格船员培训，完善安全保障措施',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC015',
+    name: '山东淄博临淄事故',
+    summary: '2025年2月25日，山东省淄博市临淄区发生事故。',
+    type: '安全事故',
+    directCause: '事故原因正在调查中',
+    indirectCause: '安全管理不到位',
+    responsibleUnit: '相关单位',
+    projectType: '工业工程',
+    accidentDate: '2025-02-25',
+    projectInfo: '工业生产项目',
+    level: '较大',
+    province: '山东省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '山东省政府安委办已挂牌督办，事故调查正在进行中',
+    lessons: '加强工业企业安全管理，定期开展安全检查',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC016',
+    name: '北京某建筑工地坍塌事故',
+    summary: '北京市某建筑工地发生坍塌事故，造成多人伤亡。',
+    type: '坍塌事故',
+    directCause: '施工过程中坍塌',
+    indirectCause: '安全管理不到位，施工方案不完善',
+    responsibleUnit: '相关施工单位',
+    projectType: '建筑工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '建筑施工项目',
+    level: '较大',
+    province: '北京市',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强建筑施工安全管理，完善施工方案，加强现场监测',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC017',
+    name: '上海某商场火灾事故',
+    summary: '上海市某商场发生火灾事故，造成多人伤亡。',
+    type: '火灾事故',
+    directCause: '电气线路故障引发火灾',
+    indirectCause: '消防安全管理不到位，消防设施不完善',
+    responsibleUnit: '相关商场',
+    projectType: '商业建筑',
+    accidentDate: '2024-01-01',
+    projectInfo: '商场建筑',
+    level: '较大',
+    province: '上海市',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强商场消防安全管理，完善消防设施，定期开展安全检查',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC018',
+    name: '江苏南京某化工厂爆炸事故',
+    summary: '江苏省南京市某化工厂发生爆炸事故，造成多人伤亡。',
+    type: '爆炸事故',
+    directCause: '化学品泄漏引发爆炸',
+    indirectCause: '安全管理不到位，设备维护不及时',
+    responsibleUnit: '某化工厂',
+    projectType: '化工工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '化工生产项目',
+    level: '较大',
     province: '江苏省',
     severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强化工企业安全管理，定期检查设备，规范操作规程',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC019',
+    name: '浙江杭州某地铁施工坍塌事故',
+    summary: '浙江省杭州市某地铁施工现场发生坍塌事故，造成多人伤亡。',
+    type: '坍塌事故',
+    directCause: '施工过程中坍塌',
+    indirectCause: '安全管理不到位，施工方案不完善',
+    responsibleUnit: '相关施工单位',
+    projectType: '交通工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '地铁施工项目',
+    level: '较大',
+    province: '浙江省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强地铁施工安全管理，完善施工方案，加强现场监测',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC020',
+    name: '福建厦门某码头坍塌事故',
+    summary: '福建省厦门市某码头发生坍塌事故，造成多人伤亡。',
+    type: '坍塌事故',
+    directCause: '码头结构失稳坍塌',
+    indirectCause: '安全管理不到位，维护不及时',
+    responsibleUnit: '相关码头运营单位',
+    projectType: '交通工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '码头运营项目',
+    level: '较大',
+    province: '福建省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强码头安全管理，定期检查维护，完善安全保障措施',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC021',
+    name: '湖北武汉某建筑工地高处坠落事故',
+    summary: '湖北省武汉市某建筑工地发生高处坠落事故，造成1人死亡。',
+    type: '高处坠落',
+    directCause: '工人未系安全带，不慎从高处坠落',
+    indirectCause: '安全管理不到位，安全培训不足',
+    responsibleUnit: '相关施工单位',
+    projectType: '建筑工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '建筑施工项目',
+    level: '一般',
+    province: '湖北省',
+    severity: '一般',
     casualties: '1死',
-    economicLoss: '约50万元',
-    progress: '事故已处理，安全隐患已整改',
-    lessons: '加强安全培训，严格执行安全操作规程',
-    punishment: '对施工单位罚款20万元，安全负责人被警告',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强建筑施工安全管理，严格执行安全操作规程，加强安全培训',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC022',
+    name: '湖南长沙某工厂火灾事故',
+    summary: '湖南省长沙市某工厂发生火灾事故，造成多人伤亡。',
+    type: '火灾事故',
+    directCause: '电气线路故障引发火灾',
+    indirectCause: '消防安全管理不到位，消防设施不完善',
+    responsibleUnit: '相关工厂',
+    projectType: '工业工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '工业生产项目',
+    level: '较大',
+    province: '湖南省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强工厂消防安全管理，完善消防设施，定期开展安全检查',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC023',
+    name: '四川成都某地铁施工透水事故',
+    summary: '四川省成都市某地铁施工现场发生透水事故，造成多人伤亡。',
+    type: '透水事故',
+    directCause: '施工过程中透水',
+    indirectCause: '安全管理不到位，地质勘察不足',
+    responsibleUnit: '相关施工单位',
+    projectType: '交通工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '地铁施工项目',
+    level: '较大',
+    province: '四川省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强地铁施工安全管理，完善地质勘察，加强现场监测',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC024',
+    name: '陕西西安某建筑工地坍塌事故',
+    summary: '陕西省西安市某建筑工地发生坍塌事故，造成多人伤亡。',
+    type: '坍塌事故',
+    directCause: '施工过程中坍塌',
+    indirectCause: '安全管理不到位，施工方案不完善',
+    responsibleUnit: '相关施工单位',
+    projectType: '建筑工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '建筑施工项目',
+    level: '较大',
+    province: '陕西省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强建筑施工安全管理，完善施工方案，加强现场监测',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC025',
+    name: '云南昆明某化工厂爆炸事故',
+    summary: '云南省昆明市某化工厂发生爆炸事故，造成多人伤亡。',
+    type: '爆炸事故',
+    directCause: '化学品泄漏引发爆炸',
+    indirectCause: '安全管理不到位，设备维护不及时',
+    responsibleUnit: '某化工厂',
+    projectType: '化工工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '化工生产项目',
+    level: '较大',
+    province: '云南省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强化工企业安全管理，定期检查设备，规范操作规程',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC026',
+    name: '贵州贵阳某建筑工地高处坠落事故',
+    summary: '贵州省贵阳市某建筑工地发生高处坠落事故，造成1人死亡。',
+    type: '高处坠落',
+    directCause: '工人未系安全带，不慎从高处坠落',
+    indirectCause: '安全管理不到位，安全培训不足',
+    responsibleUnit: '相关施工单位',
+    projectType: '建筑工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '建筑施工项目',
+    level: '一般',
+    province: '贵州省',
+    severity: '一般',
+    casualties: '1死',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强建筑施工安全管理，严格执行安全操作规程，加强安全培训',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC027',
+    name: '重庆某煤矿瓦斯爆炸事故',
+    summary: '重庆市某煤矿发生瓦斯爆炸事故，造成多人伤亡。',
+    type: '瓦斯爆炸',
+    directCause: '瓦斯积聚引发爆炸',
+    indirectCause: '安全管理不到位，瓦斯监测系统失效',
+    responsibleUnit: '相关煤矿企业',
+    projectType: '矿业工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '煤矿开采项目',
+    level: '较大',
+    province: '重庆市',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强煤矿安全管理，完善瓦斯监测系统，定期开展安全检查',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC028',
+    name: '天津某化工厂火灾事故',
+    summary: '天津市某化工厂发生火灾事故，造成多人伤亡。',
+    type: '火灾事故',
+    directCause: '化学品泄漏引发火灾',
+    indirectCause: '安全管理不到位，设备维护不及时',
+    responsibleUnit: '某化工厂',
+    projectType: '化工工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '化工生产项目',
+    level: '较大',
+    province: '天津市',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强化工企业安全管理，定期检查设备，规范操作规程',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC029',
+    name: '河北石家庄某建筑工地坍塌事故',
+    summary: '河北省石家庄市某建筑工地发生坍塌事故，造成多人伤亡。',
+    type: '坍塌事故',
+    directCause: '施工过程中坍塌',
+    indirectCause: '安全管理不到位，施工方案不完善',
+    responsibleUnit: '相关施工单位',
+    projectType: '建筑工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '建筑施工项目',
+    level: '较大',
+    province: '河北省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强建筑施工安全管理，完善施工方案，加强现场监测',
+    punishment: '相关责任人被依法追究责任',
+    files: {
+      report: [],
+      reading: [],
+      media: []
+    }
+  },
+  {
+    id: 'AC030',
+    name: '吉林长春某工厂爆炸事故',
+    summary: '吉林省长春市某工厂发生爆炸事故，造成多人伤亡。',
+    type: '爆炸事故',
+    directCause: '设备故障引发爆炸',
+    indirectCause: '安全管理不到位，设备维护不及时',
+    responsibleUnit: '相关工厂',
+    projectType: '工业工程',
+    accidentDate: '2024-01-01',
+    projectInfo: '工业生产项目',
+    level: '较大',
+    province: '吉林省',
+    severity: '较严重',
+    casualties: '多人伤亡',
+    economicLoss: '重大',
+    progress: '事故调查已完成，相关责任人已被问责',
+    lessons: '加强工厂安全管理，定期检查设备，规范操作规程',
+    punishment: '相关责任人被依法追究责任',
     files: {
       report: [],
       reading: [],
@@ -618,6 +1363,22 @@ const handleFileUpload = (file, fileList) => {
   // 实际项目中这里会处理文件上传逻辑
   console.log('文件上传:', file)
 }
+
+// 获取事故等级样式
+const getLevelClass = (level) => {
+  switch (level) {
+    case '特别重大':
+      return 'badge特别重大';
+    case '重大':
+      return 'badge重大';
+    case '较大':
+      return 'badge较大';
+    case '一般':
+      return 'badge一般';
+    default:
+      return '';
+  }
+}
 </script>
 
 <style scoped>
@@ -634,6 +1395,110 @@ const handleFileUpload = (file, fileList) => {
   
   .accident-detail {
     margin-top: 20px;
+  }
+  
+  .card-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 20px;
+  }
+  
+  .accident-card {
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+  }
+  
+  .accident-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+  }
+  
+  .card-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  
+  .badge特别重大 {
+    background-color: #fde2e2;
+    color: #f56c6c;
+  }
+  
+  .badge重大 {
+    background-color: #fef0e6;
+    color: #e6a23c;
+  }
+  
+  .badge较大 {
+    background-color: #ecf5ff;
+    color: #409eff;
+  }
+  
+  .badge一般 {
+    background-color: #f0f9eb;
+    color: #67c23a;
+  }
+  
+  .card-body {
+    padding: 16px 0;
+  }
+  
+  .card-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .info-item {
+    font-size: 14px;
+    color: #606266;
+    display: flex;
+    align-items: center;
+  }
+  
+  .info-item i {
+    margin-right: 4px;
+  }
+  
+  .card-summary {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #606266;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .card-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #606266;
+  }
+  
+  .stat-item {
+    font-weight: 500;
+  }
+  
+  .card-actions {
+    display: flex;
+    gap: 8px;
   }
 }
 </style>
