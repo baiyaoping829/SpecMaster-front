@@ -1602,8 +1602,39 @@ const downloadReport = () => {
 // 预览报告
 const previewReport = () => {
   if (currentPdfUrl.value) {
-    // 在新窗口中打开PDF文件
-    window.open(currentPdfUrl.value, '_blank')
+    try {
+      // 方法1：直接在新窗口打开PDF URL
+      const newWindow = window.open(currentPdfUrl.value, '_blank')
+      
+      // 检查新窗口是否成功打开
+      if (!newWindow) {
+        // 如果被浏览器阻止，使用方法2
+        ElMessage.warning('浏览器可能阻止了弹出窗口，请尝试允许弹出窗口或使用下载功能')
+        
+        // 方法2：创建一个新的HTML页面并通过data URL加载
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>PDF预览</title>
+            <style>
+              body { margin: 0; padding: 0; height: 100vh; }
+              iframe { width: 100%; height: 100%; border: none; }
+            </style>
+          </head>
+          <body>
+            <iframe src="${currentPdfUrl.value}"></iframe>
+          </body>
+          </html>
+        `
+        
+        const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html)
+        window.open(dataUrl, '_blank')
+      }
+    } catch (error) {
+      console.error('预览PDF失败:', error)
+      ElMessage.error('预览PDF失败，请检查浏览器设置')
+    }
   }
 }
 </script>
