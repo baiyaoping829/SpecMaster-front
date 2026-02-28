@@ -374,6 +374,142 @@ const users = ref([
     role: '普通用户',
     status: 'disabled',
     createdAt: '2024-01-03 18:00:00'
+  },
+  {
+    id: 'U004',
+    username: 'reader',
+    email: 'reader@example.com',
+    role: '只读用户',
+    status: 'active',
+    createdAt: '2024-01-04 09:00:00'
+  },
+  {
+    id: 'U005',
+    username: 'spec_admin',
+    email: 'spec_admin@example.com',
+    role: '单模块管理员',
+    status: 'active',
+    createdAt: '2024-01-05 10:00:00'
+  },
+  {
+    id: 'U006',
+    username: 'multi_admin',
+    email: 'multi_admin@example.com',
+    role: '多模块管理员',
+    status: 'active',
+    createdAt: '2024-01-06 11:00:00'
+  },
+  {
+    id: 'U007',
+    username: 'advanced_user',
+    email: 'advanced_user@example.com',
+    role: '高级用户',
+    status: 'active',
+    createdAt: '2024-01-07 12:00:00'
+  },
+  {
+    id: 'U008',
+    username: 'user3',
+    email: 'user3@example.com',
+    role: '普通用户',
+    status: 'active',
+    createdAt: '2024-01-08 13:00:00'
+  },
+  {
+    id: 'U009',
+    username: 'user4',
+    email: 'user4@example.com',
+    role: '普通用户',
+    status: 'active',
+    createdAt: '2024-01-09 14:00:00'
+  },
+  {
+    id: 'U010',
+    username: 'user5',
+    email: 'user5@example.com',
+    role: '普通用户',
+    status: 'active',
+    createdAt: '2024-01-10 15:00:00'
+  },
+  {
+    id: 'U011',
+    username: 'user6',
+    email: 'user6@example.com',
+    role: '只读用户',
+    status: 'active',
+    createdAt: '2024-01-11 16:00:00'
+  },
+  {
+    id: 'U012',
+    username: 'user7',
+    email: 'user7@example.com',
+    role: '只读用户',
+    status: 'active',
+    createdAt: '2024-01-12 17:00:00'
+  },
+  {
+    id: 'U013',
+    username: 'user8',
+    email: 'user8@example.com',
+    role: '高级用户',
+    status: 'active',
+    createdAt: '2024-01-13 18:00:00'
+  },
+  {
+    id: 'U014',
+    username: 'user9',
+    email: 'user9@example.com',
+    role: '高级用户',
+    status: 'active',
+    createdAt: '2024-01-14 19:00:00'
+  },
+  {
+    id: 'U015',
+    username: 'user10',
+    email: 'user10@example.com',
+    role: '单模块管理员',
+    status: 'active',
+    createdAt: '2024-01-15 20:00:00'
+  },
+  {
+    id: 'U016',
+    username: 'user11',
+    email: 'user11@example.com',
+    role: '多模块管理员',
+    status: 'active',
+    createdAt: '2024-01-16 21:00:00'
+  },
+  {
+    id: 'U017',
+    username: 'user12',
+    email: 'user12@example.com',
+    role: '普通用户',
+    status: 'disabled',
+    createdAt: '2024-01-17 22:00:00'
+  },
+  {
+    id: 'U018',
+    username: 'user13',
+    email: 'user13@example.com',
+    role: '普通用户',
+    status: 'active',
+    createdAt: '2024-01-18 23:00:00'
+  },
+  {
+    id: 'U019',
+    username: 'user14',
+    email: 'user14@example.com',
+    role: '高级用户',
+    status: 'active',
+    createdAt: '2024-01-19 00:00:00'
+  },
+  {
+    id: 'U020',
+    username: 'user15',
+    email: 'user15@example.com',
+    role: '只读用户',
+    status: 'active',
+    createdAt: '2024-01-20 01:00:00'
   }
 ])
 
@@ -420,6 +556,21 @@ const roles = ref([
     id: 'R003',
     name: '只读用户',
     description: '只读用户，只能查看数据'
+  },
+  {
+    id: 'R004',
+    name: '单模块管理员',
+    description: '拥有单个模块所有权限'
+  },
+  {
+    id: 'R005',
+    name: '多模块管理员',
+    description: '拥有多个模块的所有权限'
+  },
+  {
+    id: 'R006',
+    name: '高级用户',
+    description: '拥有基础操作权限和智能模块操作权限'
   }
 ])
 
@@ -442,9 +593,12 @@ const checkedPermissions = ref<string[]>([])
 
 // 角色权限映射
 const rolePermissions = ref({
-  'R001': ['P001', 'P001-1', 'P001-2', 'P001-3', 'P002', 'P002-1', 'P002-2', 'P002-3', 'P003', 'P003-1', 'P003-2', 'P003-3'],
+  'R001': ['P001', 'P001-1', 'P001-2', 'P001-3', 'P001-4', 'P002', 'P002-1', 'P002-2', 'P002-3', 'P002-4', 'P003', 'P003-1', 'P003-2', 'P003-3', 'P003-4', 'P004', 'P004-1', 'P004-2', 'P004-3', 'P005', 'P005-1', 'P005-2'],
   'R002': ['P002', 'P002-1', 'P002-2', 'P003', 'P003-1'],
-  'R003': ['P002-2']
+  'R003': ['P002-2'],
+  'R004': ['P002', 'P002-1', 'P002-2', 'P002-3', 'P002-4'], // 单模块管理员（规标管理）
+  'R005': ['P002', 'P002-1', 'P002-2', 'P002-3', 'P002-4', 'P003', 'P003-1', 'P003-2', 'P003-3', 'P003-4', 'P004', 'P004-1', 'P004-2', 'P004-3'], // 多模块管理员（规标管理、工程管理、事故管理）
+  'R006': ['P002', 'P002-1', 'P002-2', 'P002-3', 'P003', 'P003-1', 'P003-2', 'P004-2', 'P005-1', 'P005-2'] // 高级用户（基础操作权限和智能模块操作权限）
 })
 
 // 删除角色对话框
@@ -1115,6 +1269,7 @@ const getChildPermissions = (permissionId: string): string[] => {
   .el-table {
     border-radius: 8px;
     overflow: hidden;
+    border: 1px solid #e4e7ed;
     
     .el-table__header-wrapper {
       background-color: #f5f7fa;
@@ -1126,6 +1281,47 @@ const getChildPermissions = (permissionId: string): string[] => {
       &:hover {
         background-color: #f5f7fa;
       }
+    }
+    
+    .el-table__cell {
+      border-right: 1px solid #e4e7ed;
+      border-bottom: 1px solid #e4e7ed;
+    }
+    
+    .el-table__header th {
+      border-right: 1px solid #e4e7ed;
+      border-bottom: 1px solid #e4e7ed;
+    }
+  }
+  
+  // 分模块显示不同背景色
+  .el-tab-pane {
+    &:nth-child(1) { // 用户管理
+      background-color: #f9fafc;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    
+    &:nth-child(2) { // 角色管理
+      background-color: #f0f9ff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    
+    &:nth-child(3) { // 权限管理
+      background-color: #f0fdf4;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    
+    &:nth-child(4) { // 付费等级
+      background-color: #fff7e6;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 10px;
     }
   }
   
