@@ -17,7 +17,7 @@
             <el-button type="success" style="margin-left: 12px;" @click="addUser">添加用户</el-button>
           </div>
           
-          <el-table :data="filteredUsers" style="width: 100%; margin-top: 20px;">
+          <el-table :data="filteredUsers" style="width: 100%; margin-top: 20px;" height="600">
             <el-table-column prop="id" label="用户ID" width="100" />
             <el-table-column prop="username" label="用户名" width="150" />
             <el-table-column prop="email" label="邮箱" min-width="200" />
