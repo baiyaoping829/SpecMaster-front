@@ -1384,82 +1384,118 @@ const getLevelClass = (level) => {
 <style scoped>
 .accident-management {
   padding: 0 20px;
+  min-height: 100vh;
   
   .accident-search {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
   
   .pagination {
-    margin-top: 20px;
+    margin-top: 24px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
   
   .accident-detail {
-    margin-top: 20px;
+    margin-top: 24px;
   }
   
   .card-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 24px;
   }
   
   .accident-card {
-    margin-bottom: 20px;
-    transition: all 0.3s ease;
+    margin-bottom: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    border: 1px solid #eaeaea;
   }
   
   .accident-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-8px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+    border-color: #409eff;
   }
   
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e9ecef 100%);
+    border-bottom: 1px solid #eaeaea;
   }
   
   .card-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     color: #303133;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
   .card-badge {
-    padding: 2px 8px;
-    border-radius: 10px;
+    padding: 4px 12px;
+    border-radius: 16px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+  
+  .card-badge:hover {
+    transform: scale(1.05);
   }
   
   .badge特别重大 {
-    background-color: #fde2e2;
-    color: #f56c6c;
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+    border: 1px solid #f5c6cb;
   }
   
   .badge重大 {
-    background-color: #fef0e6;
-    color: #e6a23c;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
+    border: 1px solid #ffeaa7;
   }
   
   .badge较大 {
-    background-color: #ecf5ff;
-    color: #409eff;
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee3f8 100%);
+    color: #0c5460;
+    border: 1px solid #bee3f8;
   }
   
   .badge一般 {
-    background-color: #f0f9eb;
-    color: #67c23a;
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+    border: 1px solid #c3e6cb;
   }
   
   .card-body {
-    padding: 16px 0;
+    padding: 20px;
   }
   
   .card-info {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
   }
   
   .info-item {
@@ -1467,38 +1503,228 @@ const getLevelClass = (level) => {
     color: #606266;
     display: flex;
     align-items: center;
+    padding: 4px 12px;
+    background: #f8f9fa;
+    border-radius: 16px;
+    transition: all 0.3s ease;
+  }
+  
+  .info-item:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
   }
   
   .info-item i {
-    margin-right: 4px;
+    margin-right: 6px;
+    color: #409eff;
+    font-size: 16px;
   }
   
   .card-summary {
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.6;
     color: #606266;
-    margin-bottom: 12px;
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    border-left: 4px solid #409eff;
   }
   
   .card-stats {
     display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: 20px;
+    margin-bottom: 20px;
     font-size: 14px;
-    color: #606266;
   }
   
   .stat-item {
-    font-weight: 500;
+    font-weight: 600;
+    color: #303133;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e9ecef 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .stat-item i {
+    color: #409eff;
   }
   
   .card-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  
+  .card-actions .el-button {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .card-actions .el-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* 列表视图美化 */
+  .el-table {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+  
+  .el-table th {
+    background: linear-gradient(135deg, #f0f4f8 0%, #e9ecef 100%);
+    font-weight: 600;
+    color: #303133;
+  }
+  
+  .el-table tr:hover {
+    background: #f8f9fa;
+  }
+  
+  .el-table__row {
+    transition: all 0.3s ease;
+  }
+  
+  .el-table__row:hover {
+    transform: translateX(4px);
+  }
+  
+  /* 表单美化 */
+  .el-form-item {
+    margin-bottom: 20px;
+  }
+  
+  .el-form-item__label {
+    font-weight: 500;
+    color: #303133;
+  }
+  
+  .el-input,
+  .el-select,
+  .el-date-picker {
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+  
+  .el-input:hover,
+  .el-select:hover,
+  .el-date-picker:hover {
+    border-color: #409eff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+  }
+  
+  .el-slider {
+    border-radius: 4px;
+  }
+  
+  .el-slider__runway {
+    background: #e9ecef;
+  }
+  
+  .el-slider__bar {
+    background: linear-gradient(135deg, #409eff 0%, #69c0ff 100%);
+  }
+  
+  .el-slider__button {
+    border: 2px solid #409eff;
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
+  }
+  
+  /* 按钮美化 */
+  .el-button {
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .el-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* 视图切换按钮美化 */
+  .el-radio-group {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .el-radio-button__original-radio:checked + .el-radio-button__inner {
+    background: linear-gradient(135deg, #409eff 0%, #69c0ff 100%);
+    border-color: #409eff;
+  }
+  
+  /* 分页组件美化 */
+  .el-pagination {
+    margin-top: 0;
+  }
+  
+  .el-pagination__item {
+    border-radius: 6px;
+    transition: all 0.3s ease;
+  }
+  
+  .el-pagination__item:hover,
+  .el-pagination__item:focus {
+    color: #409eff;
+    border-color: #409eff;
+  }
+  
+  .el-pagination__item.is-active {
+    background: linear-gradient(135deg, #409eff 0%, #69c0ff 100%);
+    border-color: #409eff;
+  }
+  
+  /* 对话框美化 */
+  .el-dialog {
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  }
+  
+  .el-dialog__header {
+    background: linear-gradient(135deg, #f0f4f8 0%, #e9ecef 100%);
+    border-bottom: 1px solid #eaeaea;
+  }
+  
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+  }
+  
+  /* 描述列表美化 */
+  .el-descriptions {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .el-descriptions__header {
+    background: linear-gradient(135deg, #f0f4f8 0%, #e9ecef 100%);
+    padding: 16px;
+    font-weight: 600;
+    color: #303133;
+  }
+  
+  .el-descriptions__body {
+    padding: 20px;
+  }
+  
+  .el-descriptions__cell {
+    padding: 12px;
+  }
+  
+  .el-descriptions__label {
+    font-weight: 500;
+    color: #303133;
+    background: #f8f9fa;
   }
 }
 </style>
