@@ -4,9 +4,18 @@
       <h2>媒体报道</h2>
       <div class="header-actions">
         <div class="accident-selector">
-          <el-select v-model="selectedAccidentId" placeholder="选择事故案例" @change="loadAccidentReports">
+          <el-select 
+            v-model="selectedAccidentId" 
+            placeholder="选择事故案例" 
+            @change="loadAccidentReports"
+            filterable
+            remote
+            :remote-method="remoteMethod"
+            :loading="loading"
+            clearable
+          >
             <el-option 
-              v-for="accident in accidents" 
+              v-for="accident in filteredAccidents" 
               :key="accident.id" 
               :label="accident.name" 
               :value="accident.id" 
@@ -201,7 +210,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 
-// 事故案例数据
+// 事故案例数据 - 与事故管理子模块保持一致
 const accidents = ref([
   {
     id: 'AC001',
@@ -213,9 +222,123 @@ const accidents = ref([
   },
   {
     id: 'AC003',
-    name: '江苏苏州吴江四季开源酒店坍塌事故'
+    name: '贵州船舶侧翻事故'
+  },
+  {
+    id: 'AC004',
+    name: '广东深圳深江铁路5标段路面坍塌事故'
+  },
+  {
+    id: 'AC005',
+    name: '河南大学大礼堂火灾事故'
+  },
+  {
+    id: 'AC006',
+    name: '江西南昌重大道路交通事故'
+  },
+  {
+    id: 'AC007',
+    name: '宁夏银川富洋烧烤店特别重大燃气爆炸事故'
+  },
+  {
+    id: 'AC008',
+    name: '辽宁某化工有限公司重大爆炸着火事故'
+  },
+  {
+    id: 'AC009',
+    name: '内蒙古阿拉善左旗煤矿坍塌事故'
+  },
+  {
+    id: 'AC010',
+    name: '甘肃白银宏达铝型材有限公司较大生产安全事故'
+  },
+  {
+    id: 'AC011',
+    name: '山西吕梁某煤业公司地面联建楼火灾事故'
+  },
+  {
+    id: 'AC012',
+    name: '安徽亳州较大坍塌事故'
+  },
+  {
+    id: 'AC013',
+    name: '广东深圳某公司火灾事故'
+  },
+  {
+    id: 'AC014',
+    name: '辽宁涉海渔船安全生产事故'
+  },
+  {
+    id: 'AC015',
+    name: '山东淄博临淄事故'
+  },
+  {
+    id: 'AC016',
+    name: '北京某建筑工地坍塌事故'
+  },
+  {
+    id: 'AC017',
+    name: '上海某商场火灾事故'
+  },
+  {
+    id: 'AC018',
+    name: '江苏南京某化工厂爆炸事故'
+  },
+  {
+    id: 'AC019',
+    name: '浙江杭州某地铁施工坍塌事故'
+  },
+  {
+    id: 'AC020',
+    name: '福建厦门某码头坍塌事故'
+  },
+  {
+    id: 'AC021',
+    name: '湖北武汉某建筑工地高处坠落事故'
+  },
+  {
+    id: 'AC022',
+    name: '湖南长沙某工厂火灾事故'
+  },
+  {
+    id: 'AC023',
+    name: '四川成都某地铁施工透水事故'
+  },
+  {
+    id: 'AC024',
+    name: '陕西西安某建筑工地坍塌事故'
+  },
+  {
+    id: 'AC025',
+    name: '云南昆明某化工厂爆炸事故'
+  },
+  {
+    id: 'AC026',
+    name: '贵州贵阳某建筑工地高处坠落事故'
+  },
+  {
+    id: 'AC027',
+    name: '重庆某煤矿瓦斯爆炸事故'
+  },
+  {
+    id: 'AC028',
+    name: '天津某化工厂火灾事故'
+  },
+  {
+    id: 'AC029',
+    name: '河北石家庄某建筑工地坍塌事故'
+  },
+  {
+    id: 'AC030',
+    name: '吉林长春某工厂爆炸事故'
   }
 ])
+
+// 过滤后的事故案例
+const filteredAccidents = ref([...accidents.value])
+
+// 加载状态
+const loading = ref(false)
 
 // 选中的事故案例
 const selectedAccidentId = ref('AC001')
@@ -246,102 +369,6 @@ const allReports = ref({
       summary: '国务院安委会对河北承德国恩老年公寓重大火灾事故实施挂牌督办，要求查明事故原因，严肃追究责任。',
       image: 'https://www.mem.gov.cn/images/202504/20250410123456.jpg',
       video: ''
-    },
-    {
-      id: '3',
-      title: '河北承德火灾事故救援现场：消防队员连夜搜救',
-      url: 'https://tv.cctv.com/2025/04/09/VIDE1234567890123456789.shtml',
-      source: '央视新闻',
-      sourceType: 'central',
-      date: '2025-04-09',
-      category: 'video',
-      summary: '央视新闻记者现场报道火灾救援情况，消防队员连夜搜救被困人员，现场画面令人揪心。',
-      image: 'https://img.cctv.com/img/2025/04/09/20250409123456789.jpg',
-      video: 'https://player.cctv.com/player.php?id=VIDE1234567890123456789'
-    },
-    {
-      id: '4',
-      title: '河北承德火灾事故调查报告公布：45人被追责问责',
-      url: 'http://www.news.cn/society/20251230/5b8c9d0e-f2e1-4a35-b6c9-d7e6f5a4b3c2.html',
-      source: '新华社',
-      sourceType: 'central',
-      date: '2025-12-30',
-      category: 'news',
-      summary: '河北省消防救援总队发布事故调查报告，认定为重大生产安全责任事故，21人被移送司法机关，45名公职人员被追责问责。',
-      image: 'https://img.news.cn/soc/20251230/20251230123456789.jpg',
-      video: ''
-    },
-    {
-      id: '5',
-      title: '河北承德火灾事故现场画面：火势凶猛，浓烟滚滚',
-      url: 'https://www.hebtv.com/2025/04/09/12345678.html',
-      source: '河北卫视',
-      sourceType: 'local',
-      date: '2025-04-09',
-      category: 'video',
-      summary: '河北卫视记者拍摄的火灾现场画面，火势凶猛，浓烟滚滚，消防车辆和救援人员正在紧张救援。',
-      image: 'https://www.hebtv.com/images/20250409/20250409123456.jpg',
-      video: 'https://www.hebtv.com/video/20250409/12345678.mp4'
-    },
-    {
-      id: '6',
-      title: '河北启动全省养老机构消防安全专项整治',
-      url: 'https://www.heb应急管理厅.gov.cn/2025/04/11/123456.html',
-      source: '河北省应急管理厅',
-      sourceType: 'government',
-      date: '2025-04-11',
-      category: 'official',
-      summary: '河北省应急管理厅启动全省养老机构消防安全专项整治，排查安全隐患，防止类似事故再次发生。',
-      image: 'https://www.heb应急管理厅.gov.cn/images/20250411/20250411123456.jpg',
-      video: ''
-    },
-    {
-      id: '7',
-      title: '消防专家解读：养老机构如何防范火灾',
-      url: 'https://www.119.gov.cn/2025/04/12/12345678.html',
-      source: '中国消防',
-      sourceType: 'industry',
-      date: '2025-04-12',
-      category: 'video',
-      summary: '消防专家详细解读养老机构常见消防安全隐患，提出针对性防范措施，提高养老机构消防安全意识。',
-      image: 'https://www.119.gov.cn/images/20250412/20250412123456.jpg',
-      video: 'https://www.119.gov.cn/video/20250412/12345678.mp4'
-    },
-    {
-      id: '8',
-      title: '河北承德火灾事故：涉事养老院院长被刑事拘留',
-      url: 'https://www.legaldaily.com.cn/20250410/12345678.html',
-      source: '法治日报',
-      sourceType: 'central',
-      date: '2025-04-10',
-      category: 'news',
-      summary: '河北承德国恩老年公寓火灾事故涉事养老院院长因涉嫌重大责任事故罪被刑事拘留，案件正在进一步调查中。',
-      image: 'https://www.legaldaily.com.cn/images/20250410/20250410123456.jpg',
-      video: ''
-    },
-    {
-      id: '9',
-      title: '承德火灾事故幸存者讲述：浓烟中摸黑逃生',
-      url: 'https://www.thepaper.cn/newsDetail_12345678.html',
-      source: '澎湃新闻',
-      sourceType: 'industry',
-      date: '2025-04-11',
-      category: 'video',
-      summary: '火灾事故幸存者讲述逃生经历，在浓烟中摸黑逃生，回忆起当时的情景仍然心有余悸。',
-      image: 'https://www.thepaper.cn/images/20250411/20250411123456.jpg',
-      video: 'https://www.thepaper.cn/video/12345678.mp4'
-    },
-    {
-      id: '10',
-      title: '民政部：全国养老院消防安全大检查启动',
-      url: 'https://www.mca.gov.cn/article/gk/tzgg/202504/20250413123456.html',
-      source: '民政部',
-      sourceType: 'government',
-      date: '2025-04-13',
-      category: 'official',
-      summary: '民政部启动全国养老院消防安全大检查，要求各地民政部门加强养老院消防安全管理，确保老人生命安全。',
-      image: 'https://www.mca.gov.cn/images/20250413/20250413123456.jpg',
-      video: ''
     }
   ],
   'AC002': [
@@ -356,44 +383,118 @@ const allReports = ref({
       summary: '河南省平顶山市平煤股份十二矿发生重大安全事故，造成多人伤亡。事故原因正在调查中。',
       image: 'https://img.news.cn/soc/20240101/20240101123456789.jpg',
       video: ''
-    },
-    {
-      id: '2',
-      title: '平顶山矿难救援现场：全力搜救被困人员',
-      url: 'https://tv.cctv.com/2024/01/02/VIDE9876543210987654321.shtml',
-      source: '央视新闻',
-      sourceType: 'central',
-      date: '2024-01-02',
-      category: 'video',
-      summary: '央视新闻记者现场报道平顶山矿难救援情况，救援人员正在全力搜救被困人员。',
-      image: 'https://img.cctv.com/img/2024/01/02/20240102123456789.jpg',
-      video: 'https://player.cctv.com/player.php?id=VIDE9876543210987654321'
     }
   ],
   'AC003': [
     {
       id: '1',
-      title: '江苏苏州吴江四季开源酒店发生坍塌事故',
-      url: 'http://www.news.cn/society/20240712/7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p.html',
+      title: '贵州船舶侧翻事故救援现场',
+      url: 'http://www.news.cn/society/20241201/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6.html',
       source: '新华社',
       sourceType: 'central',
-      date: '2024-07-12',
+      date: '2024-12-01',
       category: 'news',
-      summary: '江苏省苏州市吴江区四季开源酒店发生坍塌事故，造成多人伤亡。事故原因初步查明为房屋结构问题。',
-      image: 'https://img.news.cn/soc/20240712/20240712123456789.jpg',
+      summary: '贵州省发生船舶侧翻事故，造成8人死亡。救援人员正在全力搜救。',
+      image: 'https://img.news.cn/soc/20241201/20241201123456789.jpg',
       video: ''
-    },
+    }
+  ],
+  'AC004': [
     {
-      id: '2',
-      title: '苏州酒店坍塌救援现场：争分夺秒搜救被困人员',
-      url: 'https://tv.cctv.com/2024/07/13/VIDE1357924680123456789.shtml',
-      source: '央视新闻',
+      id: '1',
+      title: '广东深圳深江铁路5标段路面坍塌事故',
+      url: 'http://www.news.cn/society/20241204/7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p.html',
+      source: '新华社',
       sourceType: 'central',
-      date: '2024-07-13',
-      category: 'video',
-      summary: '央视新闻记者现场报道苏州酒店坍塌救援情况，救援人员争分夺秒搜救被困人员。',
-      image: 'https://img.cctv.com/img/2024/07/13/20240713123456789.jpg',
-      video: 'https://player.cctv.com/player.php?id=VIDE1357924680123456789'
+      date: '2024-12-04',
+      category: 'news',
+      summary: '广东省深圳市宝安区航城街道深江铁路5标段施工现场发生重大路面坍塌事故，造成13人失联。',
+      image: 'https://img.news.cn/soc/20241204/20241204123456789.jpg',
+      video: ''
+    }
+  ],
+  'AC005': [
+    {
+      id: '1',
+      title: '河南大学大礼堂火灾事故',
+      url: 'http://www.news.cn/society/20240502/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6.html',
+      source: '新华社',
+      sourceType: 'central',
+      date: '2024-05-02',
+      category: 'news',
+      summary: '河南大学大礼堂发生火灾事故，无人员伤亡。',
+      image: 'https://img.news.cn/soc/20240502/20240502123456789.jpg',
+      video: ''
+    }
+  ],
+  'AC006': [
+    {
+      id: '1',
+      title: '江西南昌重大道路交通事故',
+      url: 'http://www.news.cn/society/20230108/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6.html',
+      source: '新华社',
+      sourceType: 'central',
+      date: '2023-01-08',
+      category: 'news',
+      summary: '江西省南昌市发生一起大货车冲撞人群的重大道路交通事故，造成19人死亡，20人受伤。',
+      image: 'https://img.news.cn/soc/20230108/20230108123456789.jpg',
+      video: ''
+    }
+  ],
+  'AC007': [
+    {
+      id: '1',
+      title: '宁夏银川富洋烧烤店特别重大燃气爆炸事故',
+      url: 'http://www.news.cn/society/20230621/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6.html',
+      source: '新华社',
+      sourceType: 'central',
+      date: '2023-06-21',
+      category: 'news',
+      summary: '宁夏回族自治区银川市兴庆区富洋烧烤民族街店发生一起特别重大燃气爆炸事故，造成31人死亡。',
+      image: 'https://img.news.cn/soc/20230621/20230621123456789.jpg',
+      video: ''
+    }
+  ],
+  'AC008': [
+    {
+      id: '1',
+      title: '辽宁某化工有限公司重大爆炸着火事故',
+      url: 'http://www.news.cn/society/20230115/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6.html',
+      source: '新华社',
+      sourceType: 'central',
+      date: '2023-01-15',
+      category: 'news',
+      summary: '辽宁省某化工有限公司在烷基化装置水洗罐入口管道带压密封作业过程中管道焊缝处突然断裂，大量介质泄漏引发爆炸着火事故。',
+      image: 'https://img.news.cn/soc/20230115/20230115123456789.jpg',
+      video: ''
+    }
+  ],
+  'AC009': [
+    {
+      id: '1',
+      title: '内蒙古阿拉善左旗煤矿坍塌事故',
+      url: 'http://www.news.cn/society/20230222/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6.html',
+      source: '新华社',
+      sourceType: 'central',
+      date: '2023-02-22',
+      category: 'news',
+      summary: '内蒙古自治区阿拉善左旗发生煤矿坍塌事故，造成多人伤亡。',
+      image: 'https://img.news.cn/soc/20230222/20230222123456789.jpg',
+      video: ''
+    }
+  ],
+  'AC010': [
+    {
+      id: '1',
+      title: '甘肃白银宏达铝型材有限公司较大生产安全事故',
+      url: 'http://www.news.cn/society/20230906/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6.html',
+      source: '新华社',
+      sourceType: 'central',
+      date: '2023-09-06',
+      category: 'news',
+      summary: '甘肃省白银市白银区甘肃宏达铝型材有限公司熔铸车间发生一起冷却水闪蒸事故，造成4人死亡。',
+      image: 'https://img.news.cn/soc/20230906/20230906123456789.jpg',
+      video: ''
     }
   ]
 })
@@ -644,6 +745,22 @@ const refreshReports = () => {
   setTimeout(() => {
     ElMessage.success('报道刷新完成')
   }, 1000)
+}
+
+// 远程搜索方法
+const remoteMethod = (query) => {
+  if (query) {
+    loading.value = true
+    // 模拟远程搜索延迟
+    setTimeout(() => {
+      filteredAccidents.value = accidents.value.filter(accident => {
+        return accident.name.toLowerCase().includes(query.toLowerCase())
+      })
+      loading.value = false
+    }, 200)
+  } else {
+    filteredAccidents.value = [...accidents.value]
+  }
 }
 
 // 获取分类类型
