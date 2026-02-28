@@ -170,6 +170,9 @@
       width="600px"
     >
       <el-form :model="collectionForm" label-width="80px">
+        <el-form-item label="事故案例名称">
+          <el-input v-model="collectionForm.accidentCaseName" placeholder="请输入事故案例名称" />
+        </el-form-item>
         <el-form-item label="搜索关键词">
           <el-input v-model="collectionForm.keyword" placeholder="请输入搜索关键词" />
         </el-form-item>
@@ -552,6 +555,7 @@ const reportForm = ref({
 })
 
 const collectionForm = ref({
+  accidentCaseName: '',
   keyword: '',
   count: 5,
   sourceType: [],
@@ -681,6 +685,11 @@ const handleCurrentChange = (current) => {
 
 // 智能采集
 const startIntelligentCollection = () => {
+  // 设置默认事故案例名称为当前选中的案例
+  const currentAccident = accidents.value.find(acc => acc.id === selectedAccidentId.value)
+  if (currentAccident) {
+    collectionForm.value.accidentCaseName = currentAccident.name
+  }
   collectionDialogVisible.value = true
 }
 
