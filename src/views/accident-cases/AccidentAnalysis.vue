@@ -253,67 +253,24 @@
         <template #header>
           <div class="card-header">
             <span class="card-title">官方调查报告</span>
-            <el-button type="primary" size="small" @click="downloadReport">下载报告</el-button>
+            <div class="report-actions">
+              <el-button type="primary" size="small" @click="uploadReport">上传报告</el-button>
+              <el-button type="success" size="small" @click="downloadReport" :disabled="!currentPdfUrl">下载报告</el-button>
+            </div>
           </div>
         </template>
         <div class="report-content">
-          <div class="report-reader">
-            <div class="report-header">
-              <h3>{{ selectedAccident.name }} 事故调查报告</h3>
-              <p class="report-date">发布日期：{{ new Date().toISOString().split('T')[0] }}</p>
-            </div>
-            <div class="report-body">
-              <div class="report-section">
-                <h4>一、调查概况</h4>
-                <p>根据国务院安委会的部署，成立了由应急管理部、公安部、住建部等部门组成的事故调查组，对事故进行了全面调查。调查组通过现场勘察、查阅资料、询问相关人员等方式，对事故的发生原因、经过和责任进行了深入分析。</p>
-              </div>
-              <div class="report-section">
-                <h4>二、事故基本情况</h4>
-                <p><strong>事故发生时间：</strong>{{ selectedAccident.accidentDate }}</p>
-                <p><strong>事故发生地点：</strong>{{ selectedAccident.province }}</p>
-                <p><strong>事故类型：</strong>{{ selectedAccident.type }}</p>
-                <p><strong>事故等级：</strong>{{ selectedAccident.level }}</p>
-                <p><strong>人员伤亡情况：</strong>{{ selectedAccident.casualties }}</p>
-                <p><strong>经济损失：</strong>{{ selectedAccident.economicLoss }}万元</p>
-              </div>
-              <div class="report-section">
-                <h4>三、事故原因分析</h4>
-                <div class="cause-analysis">
-                  <div class="cause-item">
-                    <h5>（一）直接原因</h5>
-                    <p>{{ selectedAccident.directCause }}</p>
-                  </div>
-                  <div class="cause-item">
-                    <h5>（二）间接原因</h5>
-                    <p>{{ selectedAccident.indirectCause }}</p>
-                  </div>
-                </div>
-              </div>
-              <div class="report-section">
-                <h4>四、责任认定</h4>
-                <p>经调查认定，该事故是一起责任事故，相关单位和人员存在失职渎职行为。具体责任认定如下：</p>
-                <ul>
-                  <li>1. {{ selectedAccident.responsibleUnit }}：作为责任单位，安全生产主体责任落实不到位，安全管理混乱，对事故发生负有主要责任。</li>
-                  <li>2. 相关监管部门：监管职责落实不到位，对事故隐患排查治理不力，对事故发生负有监管责任。</li>
-                  <li>3. 相关责任人：安全意识淡薄，违章指挥、违章作业，对事故发生负有直接责任。</li>
-                </ul>
-              </div>
-              <div class="report-section">
-                <h4>五、处理建议</h4>
-                <p>{{ selectedAccident.punishment }}</p>
-              </div>
-              <div class="report-section">
-                <h4>六、整改措施建议</h4>
-                <p>为防止类似事故再次发生，提出以下整改措施建议：</p>
-                <ul>
-                  <li>1. 加强安全生产管理，建立健全安全管理制度和操作规程。</li>
-                  <li>2. 加强安全培训教育，提高员工安全意识和操作技能。</li>
-                  <li>3. 加强安全检查和隐患排查治理，及时消除安全隐患。</li>
-                  <li>4. 加强应急管理，完善应急预案，定期开展应急演练。</li>
-                  <li>5. 加强监管执法，严厉打击违法违规行为。</li>
-                </ul>
+          <div v-if="currentPdfUrl" class="pdf-reader">
+            <div ref="pdfContainer" class="pdf-container">
+              <div v-for="(page, index) in pdfPages" :key="index" class="pdf-page">
+                <canvas :ref="el => pdfCanvasRefs[index] = el"></canvas>
               </div>
             </div>
+          </div>
+          <div v-else class="report-placeholder">
+            <el-icon class="placeholder-icon"><svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></el-icon>
+            <p>请上传事故调查报告PDF文件</p>
+            <el-button type="primary" @click="uploadReport">点击上传</el-button>
           </div>
         </div>
       </el-card>
@@ -467,6 +424,54 @@
           </span>
         </template>
       </el-dialog>
+
+      <!-- 上传报告对话框 -->
+      <el-dialog
+        v-model="uploadDialogVisible"
+        title="上传调查报告"
+        width="600px"
+        :close-on-click-modal="false"
+      >
+        <div class="upload-container">
+          <div 
+            class="upload-area" 
+            :class="{ 'drag-over': isDragOver }"
+            @dragover.prevent="handleDragOver"
+            @dragleave.prevent="handleDragLeave"
+            @drop.prevent="handleDrop"
+            @click="triggerFileInput"
+          >
+            <el-icon class="upload-icon"><svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></el-icon>
+            <p>拖拽文件到此处或点击上传</p>
+            <p class="upload-tip">支持 PDF 格式文件，最大 50MB</p>
+            <input 
+              ref="fileInput" 
+              type="file" 
+              accept=".pdf" 
+              style="display: none" 
+              @change="handleFileSelect"
+            />
+          </div>
+          <div v-if="uploadedFiles.length > 0" class="uploaded-files">
+            <h4>已上传文件：</h4>
+            <el-table :data="uploadedFiles" style="width: 100%">
+              <el-table-column prop="name" label="文件名" width="300" />
+              <el-table-column prop="size" label="大小" width="100" />
+              <el-table-column label="操作">
+                <template #default="scope">
+                  <el-button size="small" type="danger" @click="removeFile(scope.$index)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="continueUpload">继续上传</el-button>
+            <el-button type="primary" @click="saveAndExit" :disabled="uploadedFiles.length === 0">保存退出</el-button>
+          </span>
+        </template>
+      </el-dialog>
     </div>
 
     <div v-else class="empty-state">
@@ -477,7 +482,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import * as pdfjsLib from 'pdfjs-dist'
+import { ElMessage } from 'element-plus'
+
+// 设置PDF.js worker路径
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js'
 
 // 事故数据（从父组件或API获取）
 const accidents = ref([
@@ -725,6 +735,19 @@ const graphContainer = ref(null)
 const mermaidCode = ref('')
 const mermaidContainer = ref(null)
 
+// PDF相关
+const currentPdfUrl = ref('')
+const pdfContainer = ref(null)
+const pdfCanvasRefs = ref([])
+const pdfPages = ref([])
+const pdfDoc = ref(null)
+
+// 上传相关
+const uploadDialogVisible = ref(false)
+const isDragOver = ref(false)
+const uploadedFiles = ref([])
+const fileInput = ref(null)
+
 // 进入编辑模式时转换时间格式
 const convertTimesToDate = () => {
   accidentTimeline.value.forEach(event => {
@@ -850,11 +873,7 @@ const getLevelClass = (level) => {
   }
 }
 
-// 下载报告
-const downloadReport = () => {
-  console.log('下载报告')
-  // 实际项目中这里会处理文件下载逻辑
-}
+
 
 // 下载资料
 const downloadMaterial = (material) => {
@@ -1253,6 +1272,150 @@ const generateLogicDiagram = () => {
     // 实际项目中这里会初始化mermaid
   }, 1000)
 }
+
+// 渲染PDF
+const renderPdf = async (pdfUrl) => {
+  try {
+    // 加载PDF文档
+    pdfDoc.value = await pdfjsLib.getDocument(pdfUrl).promise
+    
+    // 设置页数
+    pdfPages.value = Array.from({ length: pdfDoc.value.numPages }, (_, i) => i + 1)
+    
+    // 渲染每一页
+    for (let i = 1; i <= pdfDoc.value.numPages; i++) {
+      const page = await pdfDoc.value.getPage(i)
+      const viewport = page.getViewport({ scale: 1.2 })
+      
+      // 获取canvas元素
+      const canvas = pdfCanvasRefs.value[i - 1]
+      if (!canvas) continue
+      
+      // 设置canvas尺寸
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+      
+      // 渲染页面
+      const context = canvas.getContext('2d')
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      }
+      await page.render(renderContext).promise
+    }
+  } catch (error) {
+    console.error('渲染PDF失败:', error)
+  }
+}
+
+// 上传报告
+const uploadReport = () => {
+  uploadDialogVisible.value = true
+  uploadedFiles.value = []
+}
+
+// 触发文件选择
+const triggerFileInput = () => {
+  fileInput.value.click()
+}
+
+// 处理文件选择
+const handleFileSelect = (event) => {
+  const files = event.target.files
+  if (files.length > 0) {
+    processFiles(files)
+  }
+}
+
+// 处理拖拽事件
+const handleDragOver = () => {
+  isDragOver.value = true
+}
+
+// 处理拖拽离开事件
+const handleDragLeave = () => {
+  isDragOver.value = false
+}
+
+// 处理拖拽文件
+const handleDrop = (event) => {
+  isDragOver.value = false
+  const files = event.dataTransfer.files
+  if (files.length > 0) {
+    processFiles(files)
+  }
+}
+
+// 处理文件
+const processFiles = (files) => {
+  Array.from(files).forEach(file => {
+    // 检查文件类型
+    if (file.type !== 'application/pdf') {
+      ElMessage.error('请上传PDF格式文件')
+      return
+    }
+    
+    // 检查文件大小
+    if (file.size > 50 * 1024 * 1024) {
+      ElMessage.error('文件大小不能超过50MB')
+      return
+    }
+    
+    // 添加到已上传文件列表
+    uploadedFiles.value.push({
+      name: file.name,
+      size: formatFileSize(file.size),
+      file: file
+    })
+  })
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// 删除文件
+const removeFile = (index) => {
+  uploadedFiles.value.splice(index, 1)
+}
+
+// 继续上传
+const continueUpload = () => {
+  // 清空已上传文件列表，继续上传
+  uploadedFiles.value = []
+}
+
+// 保存并退出
+const saveAndExit = () => {
+  if (uploadedFiles.value.length > 0) {
+    const file = uploadedFiles.value[0].file
+    // 创建临时URL
+    const url = URL.createObjectURL(file)
+    currentPdfUrl.value = url
+    
+    // 渲染PDF
+    renderPdf(url)
+    
+    // 关闭对话框
+    uploadDialogVisible.value = false
+  }
+}
+
+// 下载报告
+const downloadReport = () => {
+  if (currentPdfUrl.value) {
+    // 创建下载链接
+    const link = document.createElement('a')
+    link.href = currentPdfUrl.value
+    link.download = `${selectedAccident.value.name}调查报告.pdf`
+    link.click()
+  }
+}
 </script>
 
 <style scoped>
@@ -1487,6 +1650,121 @@ const generateLogicDiagram = () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* PDF阅读器样式 */
+.pdf-reader {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  min-height: 600px;
+}
+
+.pdf-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.pdf-page {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  background: white;
+  padding: 10px;
+}
+
+.pdf-page canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 报告占位符样式 */
+.report-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px dashed #dcdfe6;
+  gap: 20px;
+}
+
+.placeholder-icon {
+  color: #409eff;
+  margin-bottom: 10px;
+}
+
+.report-placeholder p {
+  font-size: 16px;
+  color: #606266;
+  margin: 0;
+}
+
+/* 报告操作按钮样式 */
+.report-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* 上传对话框样式 */
+.upload-container {
+  padding: 20px 0;
+}
+
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  background: #f8f9fa;
+  border: 2px dashed #dcdfe6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 20px;
+}
+
+.upload-area:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+
+.upload-area.drag-over {
+  border-color: #409eff;
+  background: #ecf5ff;
+  transform: scale(1.02);
+}
+
+.upload-icon {
+  color: #409eff;
+  margin-bottom: 15px;
+}
+
+.upload-area p {
+  font-size: 16px;
+  color: #606266;
+  margin: 5px 0;
+  text-align: center;
+}
+
+.upload-tip {
+  font-size: 14px !important;
+  color: #909399 !important;
+}
+
+.uploaded-files {
+  margin-top: 30px;
+}
+
+.uploaded-files h4 {
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #303133;
 }
 
 .sub-event-edit-card {
