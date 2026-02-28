@@ -21,6 +21,8 @@
             <el-table-column prop="id" label="用户ID" width="100" />
             <el-table-column prop="username" label="用户名" width="150" />
             <el-table-column prop="email" label="邮箱" min-width="200" />
+            <el-table-column prop="phone" label="手机号" width="150" />
+            <el-table-column prop="wechat" label="微信号" width="150" />
             <el-table-column prop="role" label="角色" width="120" />
             <el-table-column prop="status" label="状态" width="100">
               <template #default="scope">
@@ -76,7 +78,7 @@
             :props="permissionProps"
             @node-click="handlePermissionClick"
           >
-            <template #default="{ node, data }">
+            <template #default="{ data }">
               <span class="permission-node">
                 <span>{{ data.label }}</span>
                 <span class="permission-actions">
@@ -110,6 +112,114 @@
           </el-table>
         </div>
       </el-tab-pane>
+      
+      <el-tab-pane label="权限日志" name="log">
+        <div class="log-management">
+          <div class="log-search">
+            <el-input
+              v-model="logSearchQuery"
+              placeholder="搜索日志内容"
+              prefix-icon="el-icon-search"
+              style="width: 300px;"
+              @keyup.enter="searchLogs"
+            />
+            <el-select v-model="logTypeFilter" placeholder="选择操作类型" style="margin-left: 12px; width: 150px;">
+              <el-option label="全部" value="" />
+              <el-option label="用户操作" value="user" />
+              <el-option label="角色操作" value="role" />
+              <el-option label="权限操作" value="permission" />
+              <el-option label="付费等级操作" value="plan" />
+            </el-select>
+            <el-button type="primary" style="margin-left: 12px;" @click="searchLogs">搜索</el-button>
+            <el-button type="success" style="margin-left: 12px;" @click="clearLogFilters">清空筛选</el-button>
+          </div>
+          
+          <el-table :data="filteredLogs" style="width: 100%; margin-top: 20px;">
+            <el-table-column prop="id" label="日志ID" width="100" />
+            <el-table-column prop="actionType" label="操作类型" width="120">
+              <template #default="scope">
+                <el-tag :type="getLogTypeTagType(scope.row.actionType)">
+                  {{ getLogTypeLabel(scope.row.actionType) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="action" label="操作内容" min-width="300" />
+            <el-table-column prop="operator" label="操作人" width="150" />
+            <el-table-column prop="timestamp" label="操作时间" width="200" />
+            <el-table-column prop="ip" label="操作IP" width="150" />
+          </el-table>
+        </div>
+      </el-tab-pane>
+      
+      <el-tab-pane label="自助管理" name="self">
+        <div class="self-management">
+          <div class="self-info">
+            <h3>我的权限信息</h3>
+            <el-card>
+              <div class="user-info">
+                <div class="info-item">
+                  <span class="label">用户名：</span>
+                  <span class="value">{{ currentUser.username }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">邮箱：</span>
+                  <span class="value">{{ currentUser.email }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">角色：</span>
+                  <span class="value">{{ currentUser.role }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">付费等级：</span>
+                  <span class="value">{{ currentUser.plan }}</span>
+                </div>
+              </div>
+            </el-card>
+          </div>
+          
+          <div class="self-permissions" style="margin-top: 20px;">
+            <h3>我的权限列表</h3>
+            <el-tree
+              :data="userPermissionTree"
+              node-key="id"
+              :default-expand-all="false"
+              :props="permissionProps"
+            >
+              <template #default="{ data }">
+                <span class="permission-node">
+                  <span>{{ data.label }}</span>
+                  <span v-if="data.hasPermission" class="permission-status success">已拥有</span>
+                  <span v-else class="permission-status error">未拥有</span>
+                </span>
+              </template>
+            </el-tree>
+          </div>
+          
+          <div class="permission-request" style="margin-top: 20px;">
+            <h3>权限申请</h3>
+            <el-card>
+              <el-form :model="permissionRequestForm" label-width="80px">
+                <el-form-item label="申请权限">
+                  <el-select v-model="permissionRequestForm.permissionId" placeholder="选择要申请的权限">
+                    <el-option
+                      v-for="permission in allPermissions"
+                      :key="permission.id"
+                      :label="permission.label"
+                      :value="permission.id"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="申请理由">
+                  <el-input type="textarea" v-model="permissionRequestForm.reason" placeholder="请输入申请理由" rows="3" />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="submitPermissionRequest">提交申请</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </div>
+        </div>
+      </el-tab-pane>
     </el-tabs>
     
     <!-- 添加用户对话框 -->
@@ -124,6 +234,12 @@
         </el-form-item>
         <el-form-item label="邮箱" required>
           <el-input v-model="userForm.email" placeholder="请输入邮箱" />
+        </el-form-item>
+        <el-form-item label="手机号" required>
+          <el-input v-model="userForm.phone" placeholder="请输入手机号" />
+        </el-form-item>
+        <el-form-item label="微信号" required>
+          <el-input v-model="userForm.wechat" placeholder="请输入微信号" />
         </el-form-item>
         <el-form-item label="角色" required>
           <el-select v-model="userForm.role" placeholder="请选择角色">
@@ -183,19 +299,36 @@
     <el-dialog
       v-model="permissionDialogVisible"
       title="设置角色权限"
-      width="600px"
+      width="700px"
     >
       <el-form label-width="80px">
         <el-form-item label="角色名称">
           <el-input v-model="currentRole.name" disabled />
         </el-form-item>
+        <el-form-item label="权限模板">
+          <el-select v-model="permissionTemplate" placeholder="选择权限模板">
+            <el-option label="无模板" value="" />
+            <el-option label="管理员模板" value="admin" />
+            <el-option label="普通用户模板" value="user" />
+            <el-option label="只读用户模板" value="reader" />
+          </el-select>
+          <el-button type="primary" size="small" style="margin-left: 12px;" @click="applyTemplate">应用模板</el-button>
+        </el-form-item>
         <el-form-item label="权限设置">
+          <div class="permission-tree-actions">
+            <el-button size="small" @click="selectAllPermissions">全选</el-button>
+            <el-button size="small" @click="clearAllPermissions">清空</el-button>
+            <el-button size="small" @click="expandAllPermissions">展开全部</el-button>
+            <el-button size="small" @click="collapseAllPermissions">收起全部</el-button>
+          </div>
           <el-tree
+            ref="permissionTreeRef"
             :data="permissionTree"
             node-key="id"
-            :default-expand-all="true"
+            :default-expand-all="false"
             :props="permissionProps"
             show-checkbox
+            check-strictly
             :default-checked-keys="checkedPermissions"
             @check="handlePermissionCheck"
           />
@@ -296,19 +429,36 @@
     <el-dialog
       v-model="planPermissionDialogVisible"
       title="设置付费等级权限"
-      width="600px"
+      width="700px"
     >
       <el-form label-width="80px">
         <el-form-item label="等级名称">
           <el-input v-model="currentPlan.name" disabled />
         </el-form-item>
+        <el-form-item label="权限模板">
+          <el-select v-model="planPermissionTemplate" placeholder="选择权限模板">
+            <el-option label="无模板" value="" />
+            <el-option label="免费版模板" value="free" />
+            <el-option label="标准版模板" value="standard" />
+            <el-option label="企业版模板" value="enterprise" />
+          </el-select>
+          <el-button type="primary" size="small" style="margin-left: 12px;" @click="applyPlanTemplate">应用模板</el-button>
+        </el-form-item>
         <el-form-item label="权限设置">
+          <div class="permission-tree-actions">
+            <el-button size="small" @click="selectAllPlanPermissions">全选</el-button>
+            <el-button size="small" @click="clearAllPlanPermissions">清空</el-button>
+            <el-button size="small" @click="expandAllPlanPermissions">展开全部</el-button>
+            <el-button size="small" @click="collapseAllPlanPermissions">收起全部</el-button>
+          </div>
           <el-tree
+            ref="planPermissionTreeRef"
             :data="permissionTree"
             node-key="id"
-            :default-expand-all="true"
+            :default-expand-all="false"
             :props="permissionProps"
             show-checkbox
+            check-strictly
             :default-checked-keys="planCheckedPermissions"
             @check="handlePlanPermissionCheck"
           />
@@ -340,7 +490,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 
 // 标签页
@@ -355,6 +505,8 @@ const users = ref([
     id: 'U001',
     username: 'admin',
     email: 'admin@example.com',
+    phone: '13800138000',
+    wechat: 'admin_wechat',
     role: '管理员',
     status: 'active',
     createdAt: '2024-01-01 00:00:00'
@@ -363,6 +515,8 @@ const users = ref([
     id: 'U002',
     username: 'user1',
     email: 'user1@example.com',
+    phone: '13800138001',
+    wechat: 'user1_wechat',
     role: '普通用户',
     status: 'active',
     createdAt: '2024-01-02 12:00:00'
@@ -371,6 +525,8 @@ const users = ref([
     id: 'U003',
     username: 'user2',
     email: 'user2@example.com',
+    phone: '13800138002',
+    wechat: 'user2_wechat',
     role: '普通用户',
     status: 'disabled',
     createdAt: '2024-01-03 18:00:00'
@@ -379,6 +535,8 @@ const users = ref([
     id: 'U004',
     username: 'reader',
     email: 'reader@example.com',
+    phone: '13800138003',
+    wechat: 'reader_wechat',
     role: '只读用户',
     status: 'active',
     createdAt: '2024-01-04 09:00:00'
@@ -387,6 +545,8 @@ const users = ref([
     id: 'U005',
     username: 'spec_admin',
     email: 'spec_admin@example.com',
+    phone: '13800138004',
+    wechat: 'spec_admin_wechat',
     role: '单模块管理员',
     status: 'active',
     createdAt: '2024-01-05 10:00:00'
@@ -395,6 +555,8 @@ const users = ref([
     id: 'U006',
     username: 'multi_admin',
     email: 'multi_admin@example.com',
+    phone: '13800138005',
+    wechat: 'multi_admin_wechat',
     role: '多模块管理员',
     status: 'active',
     createdAt: '2024-01-06 11:00:00'
@@ -403,6 +565,8 @@ const users = ref([
     id: 'U007',
     username: 'advanced_user',
     email: 'advanced_user@example.com',
+    phone: '13800138006',
+    wechat: 'advanced_user_wechat',
     role: '高级用户',
     status: 'active',
     createdAt: '2024-01-07 12:00:00'
@@ -411,6 +575,8 @@ const users = ref([
     id: 'U008',
     username: 'user3',
     email: 'user3@example.com',
+    phone: '13800138007',
+    wechat: 'user3_wechat',
     role: '普通用户',
     status: 'active',
     createdAt: '2024-01-08 13:00:00'
@@ -419,6 +585,8 @@ const users = ref([
     id: 'U009',
     username: 'user4',
     email: 'user4@example.com',
+    phone: '13800138008',
+    wechat: 'user4_wechat',
     role: '普通用户',
     status: 'active',
     createdAt: '2024-01-09 14:00:00'
@@ -427,6 +595,8 @@ const users = ref([
     id: 'U010',
     username: 'user5',
     email: 'user5@example.com',
+    phone: '13800138009',
+    wechat: 'user5_wechat',
     role: '普通用户',
     status: 'active',
     createdAt: '2024-01-10 15:00:00'
@@ -435,6 +605,8 @@ const users = ref([
     id: 'U011',
     username: 'user6',
     email: 'user6@example.com',
+    phone: '13800138010',
+    wechat: 'user6_wechat',
     role: '只读用户',
     status: 'active',
     createdAt: '2024-01-11 16:00:00'
@@ -443,6 +615,8 @@ const users = ref([
     id: 'U012',
     username: 'user7',
     email: 'user7@example.com',
+    phone: '13800138011',
+    wechat: 'user7_wechat',
     role: '只读用户',
     status: 'active',
     createdAt: '2024-01-12 17:00:00'
@@ -451,6 +625,8 @@ const users = ref([
     id: 'U013',
     username: 'user8',
     email: 'user8@example.com',
+    phone: '13800138012',
+    wechat: 'user8_wechat',
     role: '高级用户',
     status: 'active',
     createdAt: '2024-01-13 18:00:00'
@@ -459,6 +635,8 @@ const users = ref([
     id: 'U014',
     username: 'user9',
     email: 'user9@example.com',
+    phone: '13800138013',
+    wechat: 'user9_wechat',
     role: '高级用户',
     status: 'active',
     createdAt: '2024-01-14 19:00:00'
@@ -467,6 +645,8 @@ const users = ref([
     id: 'U015',
     username: 'user10',
     email: 'user10@example.com',
+    phone: '13800138014',
+    wechat: 'user10_wechat',
     role: '单模块管理员',
     status: 'active',
     createdAt: '2024-01-15 20:00:00'
@@ -475,6 +655,8 @@ const users = ref([
     id: 'U016',
     username: 'user11',
     email: 'user11@example.com',
+    phone: '13800138015',
+    wechat: 'user11_wechat',
     role: '多模块管理员',
     status: 'active',
     createdAt: '2024-01-16 21:00:00'
@@ -483,6 +665,8 @@ const users = ref([
     id: 'U017',
     username: 'user12',
     email: 'user12@example.com',
+    phone: '13800138016',
+    wechat: 'user12_wechat',
     role: '普通用户',
     status: 'disabled',
     createdAt: '2024-01-17 22:00:00'
@@ -491,6 +675,8 @@ const users = ref([
     id: 'U018',
     username: 'user13',
     email: 'user13@example.com',
+    phone: '13800138017',
+    wechat: 'user13_wechat',
     role: '普通用户',
     status: 'active',
     createdAt: '2024-01-18 23:00:00'
@@ -499,6 +685,8 @@ const users = ref([
     id: 'U019',
     username: 'user14',
     email: 'user14@example.com',
+    phone: '13800138018',
+    wechat: 'user14_wechat',
     role: '高级用户',
     status: 'active',
     createdAt: '2024-01-19 00:00:00'
@@ -507,6 +695,8 @@ const users = ref([
     id: 'U020',
     username: 'user15',
     email: 'user15@example.com',
+    phone: '13800138019',
+    wechat: 'user15_wechat',
     role: '只读用户',
     status: 'active',
     createdAt: '2024-01-20 01:00:00'
@@ -532,6 +722,8 @@ const userForm = ref({
   id: '',
   username: '',
   email: '',
+  phone: '',
+  wechat: '',
   role: '',
   status: 'active'
 })
@@ -590,68 +782,219 @@ const currentRole = ref({
   name: ''
 })
 const checkedPermissions = ref<string[]>([])
+const permissionTreeRef = ref()
+const permissionTemplate = ref('')
 
-// 角色权限映射
-const rolePermissions = ref({
-  'R001': ['P001', 'P001-1', 'P001-2', 'P001-3', 'P001-4', 'P002', 'P002-1', 'P002-2', 'P002-3', 'P002-4', 'P003', 'P003-1', 'P003-2', 'P003-3', 'P003-4', 'P004', 'P004-1', 'P004-2', 'P004-3', 'P005', 'P005-1', 'P005-2'],
-  'R002': ['P002', 'P002-1', 'P002-2', 'P003', 'P003-1'],
-  'R003': ['P002-2'],
-  'R004': ['P002', 'P002-1', 'P002-2', 'P002-3', 'P002-4'], // 单模块管理员（规标管理）
-  'R005': ['P002', 'P002-1', 'P002-2', 'P002-3', 'P002-4', 'P003', 'P003-1', 'P003-2', 'P003-3', 'P003-4', 'P004', 'P004-1', 'P004-2', 'P004-3'], // 多模块管理员（规标管理、工程管理、事故管理）
-  'R006': ['P002', 'P002-1', 'P002-2', 'P002-3', 'P003', 'P003-1', 'P003-2', 'P004-2', 'P005-1', 'P005-2'] // 高级用户（基础操作权限和智能模块操作权限）
+// 角色权限映射 - 重构后（符合最小权限原则）
+const rolePermissions = ref<Record<string, string[]>>({
+  'R001': [ // 管理员 - 拥有所有权限
+    // 系统管理
+    'P001', 'P001-1', 'P001-1-1', 'P001-1-2', 'P001-1-3', 'P001-1-4', 'P001-1-5',
+    'P001-2', 'P001-2-1', 'P001-2-2', 'P001-2-3', 'P001-2-4', 'P001-2-5',
+    'P001-3', 'P001-3-1', 'P001-3-2', 'P001-3-3', 'P001-3-4',
+    'P001-4', 'P001-4-1', 'P001-4-2', 'P001-4-3',
+    // 规标管理
+    'P002', 'P002-1', 'P002-1-1', 'P002-1-2', 'P002-1-3', 'P002-1-4', 'P002-1-5',
+    'P002-2', 'P002-2-1', 'P002-2-2', 'P002-2-3',
+    'P002-3', 'P002-3-1', 'P002-3-2', 'P002-3-3',
+    'P002-4', 'P002-4-1', 'P002-4-2', 'P002-4-3',
+    // 工程管理
+    'P003', 'P003-1', 'P003-1-1', 'P003-1-2', 'P003-1-3',
+    'P003-2', 'P003-2-1', 'P003-2-2', 'P003-2-3',
+    'P003-3', 'P003-3-1', 'P003-3-2', 'P003-3-3',
+    'P003-4', 'P003-4-1', 'P003-4-2', 'P003-4-3', 'P003-4-4',
+    // 事故管理
+    'P004', 'P004-1', 'P004-1-1', 'P004-1-2', 'P004-1-3', 'P004-1-4',
+    'P004-2', 'P004-2-1', 'P004-2-2', 'P004-2-3',
+    'P004-3', 'P004-3-1', 'P004-3-2', 'P004-3-3', 'P004-3-4',
+    // 知识库
+    'P005', 'P005-1', 'P005-1-1', 'P005-1-2', 'P005-1-3', 'P005-1-4',
+    'P005-2', 'P005-2-1', 'P005-2-2', 'P005-2-3'
+  ],
+  'R002': [ // 普通用户 - 基础操作权限
+    // 规标管理
+    'P002-2', 'P002-2-1', 'P002-2-2',
+    'P002-3', 'P002-3-1', 'P002-3-2',
+    // 工程管理
+    'P003-1', 'P003-1-1', 'P003-1-2',
+    // 知识库
+    'P005-2', 'P005-2-1'
+  ],
+  'R003': [ // 只读用户 - 只能查看数据
+    // 规标管理
+    'P002-2', 'P002-2-1', 'P002-2-2',
+    // 知识库
+    'P005-2', 'P005-2-1'
+  ],
+  'R004': [ // 单模块管理员（规标管理）
+    // 规标管理
+    'P002', 'P002-1', 'P002-1-1', 'P002-1-2', 'P002-1-3', 'P002-1-4', 'P002-1-5',
+    'P002-2', 'P002-2-1', 'P002-2-2', 'P002-2-3',
+    'P002-3', 'P002-3-1', 'P002-3-2', 'P002-3-3',
+    'P002-4', 'P002-4-1', 'P002-4-2', 'P002-4-3'
+  ],
+  'R005': [ // 多模块管理员（规标管理、工程管理、事故管理）
+    // 规标管理
+    'P002', 'P002-1', 'P002-1-1', 'P002-1-2', 'P002-1-3', 'P002-1-4', 'P002-1-5',
+    'P002-2', 'P002-2-1', 'P002-2-2', 'P002-2-3',
+    'P002-3', 'P002-3-1', 'P002-3-2', 'P002-3-3',
+    'P002-4', 'P002-4-1', 'P002-4-2', 'P002-4-3',
+    // 工程管理
+    'P003', 'P003-1', 'P003-1-1', 'P003-1-2', 'P003-1-3',
+    'P003-2', 'P003-2-1', 'P003-2-2', 'P003-2-3',
+    'P003-3', 'P003-3-1', 'P003-3-2', 'P003-3-3',
+    'P003-4', 'P003-4-1', 'P003-4-2', 'P003-4-3', 'P003-4-4',
+    // 事故管理
+    'P004', 'P004-1', 'P004-1-1', 'P004-1-2', 'P004-1-3', 'P004-1-4',
+    'P004-2', 'P004-2-1', 'P004-2-2', 'P004-2-3',
+    'P004-3', 'P004-3-1', 'P004-3-2', 'P004-3-3', 'P004-3-4'
+  ],
+  'R006': [ // 高级用户（基础操作权限和智能模块操作权限）
+    // 规标管理
+    'P002-1', 'P002-1-1', 'P002-1-2', 'P002-1-3',
+    'P002-2', 'P002-2-1', 'P002-2-2', 'P002-2-3',
+    'P002-3', 'P002-3-1', 'P002-3-2', 'P002-3-3',
+    // 工程管理
+    'P003-1', 'P003-1-1', 'P003-1-2', 'P003-1-3',
+    'P003-2', 'P003-2-1', 'P003-2-2', 'P003-2-3',
+    // 事故管理
+    'P004-2', 'P004-2-1', 'P004-2-2', 'P004-2-3',
+    // 知识库
+    'P005-1', 'P005-1-1', 'P005-1-2', 'P005-1-3',
+    'P005-2', 'P005-2-1', 'P005-2-2', 'P005-2-3'
+  ]
 })
 
 // 删除角色对话框
 const deleteRoleDialogVisible = ref(false)
 const deleteRoleId = ref('')
 
-// 权限树数据
+// 权限树数据 - 重构后
 const permissionTree = ref([
   {
     id: 'P001',
     label: '系统管理',
     children: [
-      { id: 'P001-1', label: '用户管理' },
-      { id: 'P001-2', label: '角色管理' },
-      { id: 'P001-3', label: '权限管理' },
-      { id: 'P001-4', label: '系统设置' }
+      { id: 'P001-1', label: '用户管理', children: [
+        { id: 'P001-1-1', label: '查看用户' },
+        { id: 'P001-1-2', label: '添加用户' },
+        { id: 'P001-1-3', label: '编辑用户' },
+        { id: 'P001-1-4', label: '删除用户' },
+        { id: 'P001-1-5', label: '批量操作' }
+      ]},
+      { id: 'P001-2', label: '角色管理', children: [
+        { id: 'P001-2-1', label: '查看角色' },
+        { id: 'P001-2-2', label: '添加角色' },
+        { id: 'P001-2-3', label: '编辑角色' },
+        { id: 'P001-2-4', label: '删除角色' },
+        { id: 'P001-2-5', label: '设置角色权限' }
+      ]},
+      { id: 'P001-3', label: '权限管理', children: [
+        { id: 'P001-3-1', label: '查看权限' },
+        { id: 'P001-3-2', label: '添加权限' },
+        { id: 'P001-3-3', label: '编辑权限' },
+        { id: 'P001-3-4', label: '删除权限' }
+      ]},
+      { id: 'P001-4', label: '系统设置', children: [
+        { id: 'P001-4-1', label: '基本设置' },
+        { id: 'P001-4-2', label: '安全设置' },
+        { id: 'P001-4-3', label: '通知设置' }
+      ]}
     ]
   },
   {
     id: 'P002',
     label: '规标管理',
     children: [
-      { id: 'P002-1', label: '规标数据管理' },
-      { id: 'P002-2', label: '规范智阅' },
-      { id: 'P002-3', label: '规范智答' },
-      { id: 'P002-4', label: '规标导入导出' }
+      { id: 'P002-1', label: '规标数据管理', children: [
+        { id: 'P002-1-1', label: '查看数据' },
+        { id: 'P002-1-2', label: '添加数据' },
+        { id: 'P002-1-3', label: '编辑数据' },
+        { id: 'P002-1-4', label: '删除数据' },
+        { id: 'P002-1-5', label: '批量操作' }
+      ]},
+      { id: 'P002-2', label: '规范智阅', children: [
+        { id: 'P002-2-1', label: '查看文档' },
+        { id: 'P002-2-2', label: '搜索文档' },
+        { id: 'P002-2-3', label: '下载文档' }
+      ]},
+      { id: 'P002-3', label: '规范智答', children: [
+        { id: 'P002-3-1', label: '提交问题' },
+        { id: 'P002-3-2', label: '查看答案' },
+        { id: 'P002-3-3', label: '导出答案' }
+      ]},
+      { id: 'P002-4', label: '规标导入导出', children: [
+        { id: 'P002-4-1', label: '导入规标' },
+        { id: 'P002-4-2', label: '导出规标' },
+        { id: 'P002-4-3', label: '模板管理' }
+      ]}
     ]
   },
   {
     id: 'P003',
     label: '工程管理',
     children: [
-      { id: 'P003-1', label: '方案智审' },
-      { id: 'P003-2', label: '风险智控' },
-      { id: 'P003-3', label: '合同智审' },
-      { id: 'P003-4', label: '工程数据管理' }
+      { id: 'P003-1', label: '方案智审', children: [
+        { id: 'P003-1-1', label: '提交方案' },
+        { id: 'P003-1-2', label: '查看审核结果' },
+        { id: 'P003-1-3', label: '导出报告' }
+      ]},
+      { id: 'P003-2', label: '风险智控', children: [
+        { id: 'P003-2-1', label: '风险评估' },
+        { id: 'P003-2-2', label: '风险监控' },
+        { id: 'P003-2-3', label: '风险报告' }
+      ]},
+      { id: 'P003-3', label: '合同智审', children: [
+        { id: 'P003-3-1', label: '上传合同' },
+        { id: 'P003-3-2', label: '查看审核结果' },
+        { id: 'P003-3-3', label: '导出报告' }
+      ]},
+      { id: 'P003-4', label: '工程数据管理', children: [
+        { id: 'P003-4-1', label: '查看数据' },
+        { id: 'P003-4-2', label: '添加数据' },
+        { id: 'P003-4-3', label: '编辑数据' },
+        { id: 'P003-4-4', label: '删除数据' }
+      ]}
     ]
   },
   {
     id: 'P004',
     label: '事故管理',
     children: [
-      { id: 'P004-1', label: '事故案例管理' },
-      { id: 'P004-2', label: '事故分析' },
-      { id: 'P004-3', label: '媒体报道' }
+      { id: 'P004-1', label: '事故案例管理', children: [
+        { id: 'P004-1-1', label: '查看案例' },
+        { id: 'P004-1-2', label: '添加案例' },
+        { id: 'P004-1-3', label: '编辑案例' },
+        { id: 'P004-1-4', label: '删除案例' }
+      ]},
+      { id: 'P004-2', label: '事故分析', children: [
+        { id: 'P004-2-1', label: '分析报告' },
+        { id: 'P004-2-2', label: '趋势分析' },
+        { id: 'P004-2-3', label: '导出报告' }
+      ]},
+      { id: 'P004-3', label: '媒体报道', children: [
+        { id: 'P004-3-1', label: '查看报道' },
+        { id: 'P004-3-2', label: '添加报道' },
+        { id: 'P004-3-3', label: '编辑报道' },
+        { id: 'P004-3-4', label: '删除报道' }
+      ]}
     ]
   },
   {
     id: 'P005',
     label: '知识库',
     children: [
-      { id: 'P005-1', label: '知识管理' },
-      { id: 'P005-2', label: '知识检索' }
+      { id: 'P005-1', label: '知识管理', children: [
+        { id: 'P005-1-1', label: '查看知识' },
+        { id: 'P005-1-2', label: '添加知识' },
+        { id: 'P005-1-3', label: '编辑知识' },
+        { id: 'P005-1-4', label: '删除知识' }
+      ]},
+      { id: 'P005-2', label: '知识检索', children: [
+        { id: 'P005-2-1', label: '关键词搜索' },
+        { id: 'P005-2-2', label: '高级搜索' },
+        { id: 'P005-2-3', label: '搜索历史' }
+      ]}
     ]
   }
 ])
@@ -731,9 +1074,11 @@ const currentPlan = ref({
   name: ''
 })
 const planCheckedPermissions = ref<string[]>([])
+const planPermissionTreeRef = ref()
+const planPermissionTemplate = ref('')
 
 // 付费等级权限映射
-const planPermissions = ref({
+const planPermissions = ref<Record<string, string[]>>({
   'PL001': ['P002-2', 'P003-1'],
   'PL002': ['P002', 'P002-1', 'P002-2', 'P003', 'P003-1', 'P003-2', 'P004-2', 'P005-2'],
   'PL003': ['P001', 'P001-1', 'P001-2', 'P001-3', 'P001-4', 'P002', 'P002-1', 'P002-2', 'P002-3', 'P002-4', 'P003', 'P003-1', 'P003-2', 'P003-3', 'P003-4', 'P004', 'P004-1', 'P004-2', 'P004-3', 'P005', 'P005-1', 'P005-2']
@@ -743,6 +1088,58 @@ const planPermissions = ref({
 const deletePlanDialogVisible = ref(false)
 const deletePlanId = ref('')
 
+// 权限变更日志
+const logs = ref([
+  {
+    id: 'L001',
+    actionType: 'user',
+    action: '添加用户: admin',
+    operator: 'system',
+    timestamp: '2024-01-01 00:00:00',
+    ip: '127.0.0.1'
+  },
+  {
+    id: 'L002',
+    actionType: 'role',
+    action: '添加角色: 管理员',
+    operator: 'system',
+    timestamp: '2024-01-01 00:00:00',
+    ip: '127.0.0.1'
+  },
+  {
+    id: 'L003',
+    actionType: 'permission',
+    action: '设置角色权限: 管理员',
+    operator: 'system',
+    timestamp: '2024-01-01 00:00:00',
+    ip: '127.0.0.1'
+  }
+])
+
+// 日志搜索和筛选
+const logSearchQuery = ref('')
+const logTypeFilter = ref('')
+
+// 过滤后的日志数据
+const filteredLogs = computed(() => {
+  let result = logs.value
+  
+  if (logSearchQuery.value) {
+    const query = logSearchQuery.value.toLowerCase()
+    result = result.filter(log => 
+      log.action.toLowerCase().includes(query) ||
+      log.operator.toLowerCase().includes(query) ||
+      log.ip.toLowerCase().includes(query)
+    )
+  }
+  
+  if (logTypeFilter.value) {
+    result = result.filter(log => log.actionType === logTypeFilter.value)
+  }
+  
+  return result
+})
+
 // 添加用户
 const addUser = () => {
   isEditMode.value = false
@@ -750,6 +1147,8 @@ const addUser = () => {
     id: '',
     username: '',
     email: '',
+    phone: '',
+    wechat: '',
     role: '',
     status: 'active'
   }
@@ -775,14 +1174,17 @@ const confirmDeleteUser = () => {
   if (index !== -1) {
     users.value.splice(index, 1)
     ElMessage.success('用户删除成功')
+    addLog('user', `删除用户: ${deleteUserId.value}`)
   }
   deleteDialogVisible.value = false
 }
 
 // 切换用户状态
 const toggleUserStatus = (user: any) => {
-  user.status = user.status === 'active' ? 'disabled' : 'active'
+  const newStatus = user.status === 'active' ? 'disabled' : 'active'
+  user.status = newStatus
   ElMessage.success(`用户 ${user.username} 状态已切换`)
+  addLog('user', `切换用户状态: ${user.username} -> ${newStatus === 'active' ? '活跃' : '禁用'}`)
 }
 
 // 搜索用户
@@ -793,7 +1195,7 @@ const searchUsers = () => {
 
 // 保存用户
 const saveUser = () => {
-  if (!userForm.value.username || !userForm.value.email || !userForm.value.role) {
+  if (!userForm.value.username || !userForm.value.email || !userForm.value.phone || !userForm.value.wechat || !userForm.value.role) {
     ElMessage.error('请填写完整的用户信息')
     return
   }
@@ -801,9 +1203,14 @@ const saveUser = () => {
   if (isEditMode.value) {
     // 编辑现有用户
     const index = users.value.findIndex(user => user.id === userForm.value.id)
-    if (index !== -1) {
-      users.value[index] = { ...userForm.value }
+    if (index !== -1 && users.value[index]) {
+      const existingUser = users.value[index]
+      users.value[index] = { 
+        ...userForm.value, 
+        createdAt: existingUser.createdAt 
+      }
       ElMessage.success('用户编辑成功')
+      addLog('user', `编辑用户: ${userForm.value.username}`)
     }
   } else {
     // 添加新用户
@@ -814,6 +1221,7 @@ const saveUser = () => {
     }
     users.value.push(newUser)
     ElMessage.success('用户添加成功')
+    addLog('user', `添加用户: ${newUser.username}`)
   }
   
   userDialogVisible.value = false
@@ -846,12 +1254,15 @@ const deleteRole = (role: any) => {
 // 确认删除角色
 const confirmDeleteRole = () => {
   const index = roles.value.findIndex(role => role.name === deleteRoleId.value)
-  if (index !== -1) {
+  if (index !== -1 && roles.value[index]) {
     const roleId = roles.value[index].id
     roles.value.splice(index, 1)
     // 同时删除角色权限映射
-    delete rolePermissions.value[roleId]
+    if (roleId) {
+      delete rolePermissions.value[roleId]
+    }
     ElMessage.success('角色删除成功')
+    addLog('role', `删除角色: ${deleteRoleId.value}`)
   }
   deleteRoleDialogVisible.value = false
 }
@@ -865,7 +1276,7 @@ const setPermissions = (role: any) => {
 }
 
 // 处理权限选择
-const handlePermissionCheck = (data: any, checked: any) => {
+const handlePermissionCheck = (_data: any, _checked: any) => {
   // 权限选择逻辑由el-tree组件处理
 }
 
@@ -873,6 +1284,7 @@ const handlePermissionCheck = (data: any, checked: any) => {
 const savePermissions = () => {
   rolePermissions.value[currentRole.value.id] = checkedPermissions.value
   ElMessage.success('权限设置成功')
+  addLog('permission', `设置角色权限: ${currentRole.value.name}`)
   permissionDialogVisible.value = false
 }
 
@@ -889,6 +1301,7 @@ const saveRole = () => {
     if (index !== -1) {
       roles.value[index] = { ...roleForm.value }
       ElMessage.success('角色编辑成功')
+      addLog('role', `编辑角色: ${roleForm.value.name}`)
     }
   } else {
     // 添加新角色
@@ -900,6 +1313,7 @@ const saveRole = () => {
     // 初始化角色权限
     rolePermissions.value[newRole.id] = []
     ElMessage.success('角色添加成功')
+    addLog('role', `添加角色: ${newRole.name}`)
   }
   
   roleDialogVisible.value = false
@@ -959,11 +1373,15 @@ const confirmDeletePermission = () => {
   deletePermissionRecursive(permissionTree.value)
   
   // 同时从角色权限映射中删除该权限
-  for (const roleId in rolePermissions.value) {
-    rolePermissions.value[roleId] = rolePermissions.value[roleId].filter((perm: string) => perm !== deletePermissionId.value)
-  }
+    for (const roleId in rolePermissions.value) {
+      const perms = rolePermissions.value[roleId]
+      if (perms) {
+        rolePermissions.value[roleId] = perms.filter((perm: string) => perm !== deletePermissionId.value)
+      }
+    }
   
   ElMessage.success('权限删除成功')
+  addLog('permission', `删除权限: ${deletePermissionId.value}`)
   deletePermissionDialogVisible.value = false
 }
 
@@ -993,6 +1411,7 @@ const savePermission = () => {
     
     updatePermissionRecursive(permissionTree.value)
     ElMessage.success('权限编辑成功')
+    addLog('permission', `编辑权限: ${permissionForm.value.label} (${permissionForm.value.id})`)
   } else {
     // 添加新权限
     if (permissionForm.value.parentId) {
@@ -1028,6 +1447,7 @@ const savePermission = () => {
       })
     }
     ElMessage.success('权限添加成功')
+    addLog('permission', `添加权限: ${permissionForm.value.label} (${permissionForm.value.id})`)
   }
   
   permissionDialogVisible2.value = false
@@ -1061,12 +1481,15 @@ const deletePlan = (plan: any) => {
 // 确认删除付费等级
 const confirmDeletePlan = () => {
   const index = plans.value.findIndex(plan => plan.name === deletePlanId.value)
-  if (index !== -1) {
+  if (index !== -1 && plans.value[index]) {
     const planId = plans.value[index].id
     plans.value.splice(index, 1)
     // 同时删除付费等级权限映射
-    delete planPermissions.value[planId]
+    if (planId) {
+      delete planPermissions.value[planId]
+    }
     ElMessage.success('付费等级删除成功')
+    addLog('plan', `删除付费等级: ${deletePlanId.value}`)
   }
   deletePlanDialogVisible.value = false
 }
@@ -1080,7 +1503,7 @@ const setPlanPermissions = (plan: any) => {
 }
 
 // 处理付费等级权限选择
-const handlePlanPermissionCheck = (data: any, checked: any) => {
+const handlePlanPermissionCheck = (_data: any, _checked: any) => {
   // 权限选择逻辑由el-tree组件处理
 }
 
@@ -1088,6 +1511,7 @@ const handlePlanPermissionCheck = (data: any, checked: any) => {
 const savePlanPermissions = () => {
   planPermissions.value[currentPlan.value.id] = planCheckedPermissions.value
   ElMessage.success('付费等级权限设置成功')
+  addLog('plan', `设置付费等级权限: ${currentPlan.value.name}`)
   planPermissionDialogVisible.value = false
 }
 
@@ -1104,6 +1528,7 @@ const savePlan = () => {
     if (index !== -1) {
       plans.value[index] = { ...planForm.value }
       ElMessage.success('付费等级编辑成功')
+      addLog('plan', `编辑付费等级: ${planForm.value.name}`)
     }
   } else {
     // 添加新付费等级
@@ -1115,96 +1540,378 @@ const savePlan = () => {
     // 初始化付费等级权限
     planPermissions.value[newPlan.id] = []
     ElMessage.success('付费等级添加成功')
+    addLog('plan', `添加付费等级: ${newPlan.name}`)
   }
   
   planDialogVisible.value = false
 }
 
 // 权限验证机制
+// 权限验证缓存
+// const permissionCache = ref(new Map())
+
 // 检查用户是否拥有某个权限
-const checkPermission = (userId: string, permissionId: string): boolean => {
-  // 查找用户
-  const user = users.value.find(u => u.id === userId)
-  if (!user) return false
-  
-  // 查找用户角色
-  const role = roles.value.find(r => r.name === user.role)
-  if (!role) return false
-  
-  // 获取角色权限
-  const rolePerms = rolePermissions.value[role.id] || []
-  
-  // 检查权限
-  return checkPermissionRecursive(rolePerms, permissionId)
-}
+// const checkPermission = (userId: string, permissionId: string): boolean => {
+//   // 生成缓存键
+//   const cacheKey = `${userId}:${permissionId}`
+//   
+//   // 检查缓存
+//   if (permissionCache.value.has(cacheKey)) {
+//     return permissionCache.value.get(cacheKey)
+//   }
+//   
+//   // 查找用户
+//   const user = users.value.find(u => u.id === userId)
+//   if (!user) {
+//     permissionCache.value.set(cacheKey, false)
+//     return false
+//   }
+//   
+//   // 查找用户角色
+//   const role = roles.value.find(r => r.name === user.role)
+//   if (!role) {
+//     permissionCache.value.set(cacheKey, false)
+//     return false
+//   }
+//   
+//   // 获取角色权限
+//   const rolePerms = rolePermissions.value[role.id] || []
+//   
+//   // 检查权限
+//   const result = checkPermissionRecursive(rolePerms, permissionId)
+//   
+//   // 缓存结果
+//   permissionCache.value.set(cacheKey, result)
+//   return result
+// }
+
+// 批量检查用户权限
+// const checkPermissions = (userId: string, permissionIds: string[]): Record<string, boolean> => {
+//   const results: Record<string, boolean> = {}
+//   
+//   permissionIds.forEach(permissionId => {
+//     results[permissionId] = checkPermission(userId, permissionId)
+//   })
+//   
+//   return results
+// }
 
 // 递归检查权限（包括父权限）
-const checkPermissionRecursive = (permissions: string[], permissionId: string): boolean => {
-  // 直接检查权限
-  if (permissions.includes(permissionId)) return true
-  
-  // 检查父权限
-  const parentPermissionId = getParentPermissionId(permissionId)
-  if (parentPermissionId) {
-    return checkPermissionRecursive(permissions, parentPermissionId)
-  }
-  
-  return false
-}
+// const checkPermissionRecursive = (permissions: string[], permissionId: string): boolean => {
+//   // 直接检查权限
+//   if (permissions.includes(permissionId)) return true
+//   
+//   // 检查父权限
+//   const parentPermissionId = getParentPermissionId(permissionId)
+//   if (parentPermissionId) {
+//     return checkPermissionRecursive(permissions, parentPermissionId)
+//   }
+//   
+//   return false
+// }
 
 // 获取父权限ID
-const getParentPermissionId = (permissionId: string): string | null => {
-  // 例如：P001-1的父权限是P001
-  const parts = permissionId.split('-')
-  if (parts.length > 1) {
-    return parts[0]
-  }
-  return null
-}
+// const getParentPermissionId = (permissionId: string): string | null => {
+//   // 例如：P001-1的父权限是P001
+//   const parts = permissionId.split('-')
+//   if (parts.length > 1 && parts[0]) {
+//     return parts[0]
+//   }
+//   return null
+// }
 
 // 检查付费等级权限
-const checkPlanPermission = (planId: string, permissionId: string): boolean => {
-  const planPerms = planPermissions.value[planId] || []
-  return checkPermissionRecursive(planPerms, permissionId)
-}
+// const checkPlanPermission = (planId: string, permissionId: string): boolean => {
+//   const planPerms = planPermissions.value[planId] || []
+//   return checkPermissionRecursive(planPerms, permissionId)
+// }
+
+// 批量检查付费等级权限
+// const checkPlanPermissions = (planId: string, permissionIds: string[]): Record<string, boolean> => {
+//   const results: Record<string, boolean> = {}
+//   
+//   permissionIds.forEach(permissionId => {
+//     results[permissionId] = checkPlanPermission(planId, permissionId)
+//   })
+//   
+//   return results
+// }
+
+// 清除权限缓存
+// const clearPermissionCache = () => {
+//   permissionCache.value.clear()
+//   ElMessage.success('权限缓存已清除')
+// }
+
+// 检查用户是否拥有模块权限
+// const checkModulePermission = (userId: string, moduleId: string): boolean => {
+//   return checkPermission(userId, moduleId)
+// }
+
+// 检查用户是否拥有操作权限
+// const checkOperationPermission = (userId: string, operationId: string): boolean => {
+//   return checkPermission(userId, operationId)
+// }
 
 // 权限层级结构
 // 获取权限的完整层级路径
-const getPermissionPath = (permissionId: string): string[] => {
-  const path: string[] = [permissionId]
-  let parentId = getParentPermissionId(permissionId)
-  
-  while (parentId) {
-    path.unshift(parentId)
-    parentId = getParentPermissionId(parentId)
-  }
-  
-  return path
-}
+// const getPermissionPath = (permissionId: string): string[] => {
+//   const path: string[] = [permissionId]
+//   let parentId = getParentPermissionId(permissionId)
+//   
+//   while (parentId) {
+//     path.unshift(parentId)
+//     parentId = getParentPermissionId(parentId)
+//   }
+//   
+//   return path
+// }
 
 // 获取权限的子权限
-const getChildPermissions = (permissionId: string): string[] => {
-  const children: string[] = []
-  
-  const findChildren = (nodes: any[]) => {
+// const getChildPermissions = (permissionId: string): string[] => {
+//   const children: string[] = []
+//   
+//   const findChildren = (nodes: any[]) => {
+//     for (const node of nodes) {
+//       if (node.id === permissionId && node.children) {
+//         node.children.forEach((child: any) => {
+//           children.push(child.id)
+//           if (child.children) {
+//             findChildren(child.children)
+//           }
+//         })
+//         return
+//       }
+//       if (node.children) {
+//         findChildren(node.children)
+//       }
+//     }
+//   }
+//   
+//   findChildren(permissionTree.value)
+//   return children
+// }
+
+// 角色权限批量操作方法
+// 全选所有权限
+const selectAllPermissions = () => {
+  const allPerms: string[] = []
+  const collectPermissions = (nodes: any[]) => {
     for (const node of nodes) {
-      if (node.id === permissionId && node.children) {
-        node.children.forEach((child: any) => {
-          children.push(child.id)
-          if (child.children) {
-            findChildren(child.children)
-          }
-        })
-        return
-      }
+      allPerms.push(node.id)
       if (node.children) {
-        findChildren(node.children)
+        collectPermissions(node.children)
       }
     }
   }
+  collectPermissions(permissionTree.value)
+  checkedPermissions.value = allPerms
+  ElMessage.success('已全选所有权限')
+}
+
+// 清空所有权限
+const clearAllPermissions = () => {
+  checkedPermissions.value = []
+  ElMessage.success('已清空所有权限')
+}
+
+// 展开所有权限节点
+const expandAllPermissions = async () => {
+  await nextTick()
+  permissionTreeRef.value?.expandAll()
+  ElMessage.success('已展开所有权限节点')
+}
+
+// 收起所有权限节点
+const collapseAllPermissions = async () => {
+  await nextTick()
+  permissionTreeRef.value?.collapseAll()
+  ElMessage.success('已收起所有权限节点')
+}
+
+// 应用权限模板
+const applyTemplate = () => {
+  if (!permissionTemplate.value) {
+    ElMessage.warning('请选择权限模板')
+    return
+  }
   
-  findChildren(permissionTree.value)
-  return children
+  switch (permissionTemplate.value) {
+    case 'admin':
+      checkedPermissions.value = rolePermissions.value['R001'] || []
+      break
+    case 'user':
+      checkedPermissions.value = rolePermissions.value['R002'] || []
+      break
+    case 'reader':
+      checkedPermissions.value = rolePermissions.value['R003'] || []
+      break
+  }
+  ElMessage.success('权限模板应用成功')
+}
+
+// 付费等级权限批量操作方法
+// 全选所有权限
+const selectAllPlanPermissions = () => {
+  const allPerms: string[] = []
+  const collectPermissions = (nodes: any[]) => {
+    for (const node of nodes) {
+      allPerms.push(node.id)
+      if (node.children) {
+        collectPermissions(node.children)
+      }
+    }
+  }
+  collectPermissions(permissionTree.value)
+  planCheckedPermissions.value = allPerms
+  ElMessage.success('已全选所有权限')
+}
+
+// 清空所有权限
+const clearAllPlanPermissions = () => {
+  planCheckedPermissions.value = []
+  ElMessage.success('已清空所有权限')
+}
+
+// 展开所有权限节点
+const expandAllPlanPermissions = async () => {
+  await nextTick()
+  planPermissionTreeRef.value?.expandAll()
+  ElMessage.success('已展开所有权限节点')
+}
+
+// 收起所有权限节点
+const collapseAllPlanPermissions = async () => {
+  await nextTick()
+  planPermissionTreeRef.value?.collapseAll()
+  ElMessage.success('已收起所有权限节点')
+}
+
+// 应用付费等级权限模板
+const applyPlanTemplate = () => {
+  if (!planPermissionTemplate.value) {
+    ElMessage.warning('请选择权限模板')
+    return
+  }
+  
+  switch (planPermissionTemplate.value) {
+    case 'free':
+      planCheckedPermissions.value = planPermissions.value['PL001'] || []
+      break
+    case 'standard':
+      planCheckedPermissions.value = planPermissions.value['PL002'] || []
+      break
+    case 'enterprise':
+      planCheckedPermissions.value = planPermissions.value['PL003'] || []
+      break
+  }
+  ElMessage.success('权限模板应用成功')
+}
+
+// 日志相关方法
+// 记录权限变更日志
+const addLog = (actionType: string, action: string, operator: string = 'admin') => {
+  const newLog = {
+    id: `L${String(logs.value.length + 1).padStart(3, '0')}`,
+    actionType,
+    action,
+    operator,
+    timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    ip: '127.0.0.1' // 实际应用中应从请求中获取
+  }
+  logs.value.unshift(newLog)
+}
+
+// 搜索日志
+const searchLogs = () => {
+  ElMessage.info('日志搜索完成')
+}
+
+// 清空日志筛选
+const clearLogFilters = () => {
+  logSearchQuery.value = ''
+  logTypeFilter.value = ''
+  ElMessage.success('筛选条件已清空')
+}
+
+// 获取日志类型标签样式
+const getLogTypeTagType = (actionType: string): string => {
+  switch (actionType) {
+    case 'user': return 'primary'
+    case 'role': return 'success'
+    case 'permission': return 'warning'
+    case 'plan': return 'info'
+    default: return 'default'
+  }
+}
+
+// 获取日志类型标签文本
+const getLogTypeLabel = (actionType: string): string => {
+  switch (actionType) {
+    case 'user': return '用户操作'
+    case 'role': return '角色操作'
+    case 'permission': return '权限操作'
+    case 'plan': return '付费等级操作'
+    default: return '其他操作'
+  }
+}
+
+// 用户权限自助管理
+// 当前用户信息
+const currentUser = ref({
+  id: 'U001',
+  username: 'admin',
+  email: 'admin@example.com',
+  role: '管理员',
+  plan: '企业版'
+})
+
+// 生成用户权限树
+const userPermissionTree = computed(() => {
+  const buildPermissionTree = (nodes: any[]) => {
+    return nodes.map(node => {
+      // 模拟权限检查，实际应用中应该使用真实的权限检查逻辑
+      const hasPermission = true
+      const newNode = {
+        ...node,
+        hasPermission
+      }
+      if (node.children) {
+        newNode.children = buildPermissionTree(node.children)
+      }
+      return newNode
+    })
+  }
+  return buildPermissionTree(permissionTree.value)
+})
+
+// 权限申请表单
+const permissionRequestForm = ref({
+  permissionId: '',
+  reason: ''
+})
+
+// 提交权限申请
+const submitPermissionRequest = () => {
+  if (!permissionRequestForm.value.permissionId || !permissionRequestForm.value.reason) {
+    ElMessage.error('请填写完整的申请信息')
+    return
+  }
+  
+  // 查找权限名称
+  const permission = allPermissions.value.find(p => p.id === permissionRequestForm.value.permissionId)
+  const permissionName = permission ? permission.label : permissionRequestForm.value.permissionId
+  
+  // 记录权限申请日志
+  addLog('user', `申请权限: ${permissionName}，理由: ${permissionRequestForm.value.reason}`, currentUser.value.username)
+  
+  ElMessage.success('权限申请提交成功，请等待管理员审批')
+  
+  // 重置表单
+  permissionRequestForm.value = {
+    permissionId: '',
+    reason: ''
+  }
 }
 </script>
 
@@ -1379,9 +2086,80 @@ const getChildPermissions = (permissionId: string): string[] => {
     border: 1px solid #e4e7ed;
     border-radius: 4px;
     padding: 8px;
+    margin-top: 10px;
     
     .el-tree-node {
       padding: 4px 0;
+    }
+  }
+  
+  // 权限树操作按钮样式
+  .permission-tree-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e4e7ed;
+    
+    .el-button {
+      padding: 4px 12px;
+      font-size: 12px;
+    }
+  }
+  
+  // 自助管理样式
+  .self-management {
+    padding: 20px;
+    background-color: #f9fafc;
+    border-radius: 8px;
+    
+    h3 {
+      margin-bottom: 15px;
+      color: #303133;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .user-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      
+      .info-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        
+        .label {
+          font-weight: 500;
+          color: #606266;
+        }
+        
+        .value {
+          color: #303133;
+        }
+      }
+    }
+    
+    .permission-status {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 10px;
+      
+      &.success {
+        background-color: #f0f9eb;
+        color: #67c23a;
+      }
+      
+      &.error {
+        background-color: #fef0f0;
+        color: #f56c6c;
+      }
+    }
+    
+    .el-card {
+      margin-bottom: 20px;
     }
   }
   
