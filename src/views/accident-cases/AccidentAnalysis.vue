@@ -256,6 +256,7 @@
             <div class="report-actions">
               <el-button type="primary" size="small" @click="uploadReport">上传报告</el-button>
               <el-button type="success" size="small" @click="downloadReport" :disabled="!currentPdfUrl">下载报告</el-button>
+              <el-button type="info" size="small" @click="previewReport" :disabled="!currentPdfUrl">预览报告</el-button>
             </div>
           </div>
         </template>
@@ -1595,6 +1596,14 @@ const downloadReport = () => {
     link.href = currentPdfUrl.value
     link.download = `${selectedAccident.value.name}调查报告.pdf`
     link.click()
+  }
+}
+
+// 预览报告
+const previewReport = () => {
+  if (currentPdfUrl.value) {
+    // 在新窗口中打开PDF文件
+    window.open(currentPdfUrl.value, '_blank')
   }
 }
 </script>
