@@ -24,6 +24,7 @@
             <el-table-column prop="phone" label="手机号" width="150" />
             <el-table-column prop="wechat" label="微信号" width="150" />
             <el-table-column prop="role" label="角色" width="120" />
+            <el-table-column prop="plan" label="付费等级" width="120" />
             <el-table-column prop="status" label="状态" width="100">
               <template #default="scope">
                 <el-tag :type="scope.row.status === 'active' ? 'success' : 'danger'">
@@ -244,6 +245,11 @@
         <el-form-item label="角色" required>
           <el-select v-model="userForm.role" placeholder="请选择角色">
             <el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.name" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="付费等级" required>
+          <el-select v-model="userForm.plan" placeholder="请选择付费等级">
+            <el-option v-for="plan in plans" :key="plan.id" :label="plan.name" :value="plan.name" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -508,6 +514,7 @@ const users = ref([
     phone: '13800138000',
     wechat: 'admin_wechat',
     role: '管理员',
+    plan: '企业版',
     status: 'active',
     createdAt: '2024-01-01 00:00:00'
   },
@@ -518,6 +525,7 @@ const users = ref([
     phone: '13800138001',
     wechat: 'user1_wechat',
     role: '普通用户',
+    plan: '标准版',
     status: 'active',
     createdAt: '2024-01-02 12:00:00'
   },
@@ -528,6 +536,7 @@ const users = ref([
     phone: '13800138002',
     wechat: 'user2_wechat',
     role: '普通用户',
+    plan: '免费版',
     status: 'disabled',
     createdAt: '2024-01-03 18:00:00'
   },
@@ -538,6 +547,7 @@ const users = ref([
     phone: '13800138003',
     wechat: 'reader_wechat',
     role: '只读用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-04 09:00:00'
   },
@@ -548,6 +558,7 @@ const users = ref([
     phone: '13800138004',
     wechat: 'spec_admin_wechat',
     role: '单模块管理员',
+    plan: '标准版',
     status: 'active',
     createdAt: '2024-01-05 10:00:00'
   },
@@ -558,6 +569,7 @@ const users = ref([
     phone: '13800138005',
     wechat: 'multi_admin_wechat',
     role: '多模块管理员',
+    plan: '企业版',
     status: 'active',
     createdAt: '2024-01-06 11:00:00'
   },
@@ -568,6 +580,7 @@ const users = ref([
     phone: '13800138006',
     wechat: 'advanced_user_wechat',
     role: '高级用户',
+    plan: '标准版',
     status: 'active',
     createdAt: '2024-01-07 12:00:00'
   },
@@ -578,6 +591,7 @@ const users = ref([
     phone: '13800138007',
     wechat: 'user3_wechat',
     role: '普通用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-08 13:00:00'
   },
@@ -588,6 +602,7 @@ const users = ref([
     phone: '13800138008',
     wechat: 'user4_wechat',
     role: '普通用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-09 14:00:00'
   },
@@ -598,6 +613,7 @@ const users = ref([
     phone: '13800138009',
     wechat: 'user5_wechat',
     role: '普通用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-10 15:00:00'
   },
@@ -608,6 +624,7 @@ const users = ref([
     phone: '13800138010',
     wechat: 'user6_wechat',
     role: '只读用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-11 16:00:00'
   },
@@ -618,6 +635,7 @@ const users = ref([
     phone: '13800138011',
     wechat: 'user7_wechat',
     role: '只读用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-12 17:00:00'
   },
@@ -628,6 +646,7 @@ const users = ref([
     phone: '13800138012',
     wechat: 'user8_wechat',
     role: '高级用户',
+    plan: '标准版',
     status: 'active',
     createdAt: '2024-01-13 18:00:00'
   },
@@ -638,6 +657,7 @@ const users = ref([
     phone: '13800138013',
     wechat: 'user9_wechat',
     role: '高级用户',
+    plan: '标准版',
     status: 'active',
     createdAt: '2024-01-14 19:00:00'
   },
@@ -648,6 +668,7 @@ const users = ref([
     phone: '13800138014',
     wechat: 'user10_wechat',
     role: '单模块管理员',
+    plan: '标准版',
     status: 'active',
     createdAt: '2024-01-15 20:00:00'
   },
@@ -658,6 +679,7 @@ const users = ref([
     phone: '13800138015',
     wechat: 'user11_wechat',
     role: '多模块管理员',
+    plan: '企业版',
     status: 'active',
     createdAt: '2024-01-16 21:00:00'
   },
@@ -668,6 +690,7 @@ const users = ref([
     phone: '13800138016',
     wechat: 'user12_wechat',
     role: '普通用户',
+    plan: '免费版',
     status: 'disabled',
     createdAt: '2024-01-17 22:00:00'
   },
@@ -678,6 +701,7 @@ const users = ref([
     phone: '13800138017',
     wechat: 'user13_wechat',
     role: '普通用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-18 23:00:00'
   },
@@ -688,6 +712,7 @@ const users = ref([
     phone: '13800138018',
     wechat: 'user14_wechat',
     role: '高级用户',
+    plan: '标准版',
     status: 'active',
     createdAt: '2024-01-19 00:00:00'
   },
@@ -698,6 +723,7 @@ const users = ref([
     phone: '13800138019',
     wechat: 'user15_wechat',
     role: '只读用户',
+    plan: '免费版',
     status: 'active',
     createdAt: '2024-01-20 01:00:00'
   }
@@ -725,6 +751,7 @@ const userForm = ref({
   phone: '',
   wechat: '',
   role: '',
+  plan: '',
   status: 'active'
 })
 
@@ -1150,6 +1177,7 @@ const addUser = () => {
     phone: '',
     wechat: '',
     role: '',
+    plan: '',
     status: 'active'
   }
   userDialogVisible.value = true
@@ -1195,7 +1223,7 @@ const searchUsers = () => {
 
 // 保存用户
 const saveUser = () => {
-  if (!userForm.value.username || !userForm.value.email || !userForm.value.phone || !userForm.value.wechat || !userForm.value.role) {
+  if (!userForm.value.username || !userForm.value.email || !userForm.value.phone || !userForm.value.wechat || !userForm.value.role || !userForm.value.plan) {
     ElMessage.error('请填写完整的用户信息')
     return
   }
