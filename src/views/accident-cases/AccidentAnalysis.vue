@@ -261,9 +261,26 @@
         </template>
         <div class="report-content">
           <div v-if="currentPdfUrl" class="pdf-reader">
+            <!-- PDF控制栏 -->
+            <div class="pdf-controls">
+              <el-button size="small" @click="previousPage" :disabled="currentPage <= 1">上一页</el-button>
+              <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+              <el-button size="small" @click="nextPage" :disabled="currentPage >= totalPages">下一页</el-button>
+              <el-slider 
+                v-model="zoomLevel" 
+                :min="0.5" 
+                :max="2" 
+                :step="0.1" 
+                @change="handleZoomChange"
+                style="width: 150px; margin: 0 20px"
+              />
+              <span class="zoom-info">{{ Math.round(zoomLevel * 100) }}%</span>
+            </div>
+            
+            <!-- PDF渲染区域 -->
             <div ref="pdfContainer" class="pdf-container">
-              <div v-for="(page, index) in pdfPages" :key="index" class="pdf-page">
-                <canvas :ref="el => pdfCanvasRefs[index] = el"></canvas>
+              <div class="pdf-page" v-for="(page, index) in pdfPages" :key="index">
+                <canvas :ref="el => { if (el) pdfCanvas[index] = el }"></canvas>
               </div>
             </div>
           </div>
@@ -444,6 +461,7 @@
             <el-icon class="upload-icon"><svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></el-icon>
             <p>拖拽文件到此处或点击上传</p>
             <p class="upload-tip">支持 PDF 格式文件，最大 50MB</p>
+            <el-button type="primary" size="small" @click="triggerFileInput">选择文件</el-button>
             <input 
               ref="fileInput" 
               type="file" 
@@ -464,6 +482,10 @@
               </el-table-column>
             </el-table>
           </div>
+          <div v-if="uploadProgress > 0 && uploadProgress < 100" class="upload-progress">
+            <el-progress :percentage="uploadProgress" status="success" />
+            <p class="progress-text">上传进度：{{ uploadProgress }}%</p>
+          </div>
         </div>
         <template #footer>
           <span class="dialog-footer">
@@ -482,7 +504,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist'
 import { ElMessage } from 'element-plus'
 
@@ -738,15 +760,19 @@ const mermaidContainer = ref(null)
 // PDF相关
 const currentPdfUrl = ref('')
 const pdfContainer = ref(null)
-const pdfCanvasRefs = ref([])
+const pdfCanvas = ref([])
 const pdfPages = ref([])
 const pdfDoc = ref(null)
+const currentPage = ref(1)
+const totalPages = ref(0)
+const zoomLevel = ref(1.0)
 
 // 上传相关
 const uploadDialogVisible = ref(false)
 const isDragOver = ref(false)
 const uploadedFiles = ref([])
 const fileInput = ref(null)
+const uploadProgress = ref(0)
 
 // 进入编辑模式时转换时间格式
 const convertTimesToDate = () => {
@@ -1276,35 +1302,161 @@ const generateLogicDiagram = () => {
 // 渲染PDF
 const renderPdf = async (pdfUrl) => {
   try {
+    console.log('开始渲染PDF:', pdfUrl)
+    
+    // 重置状态
+    pdfCanvas.value = []
+    currentPage.value = 1
+    zoomLevel.value = 1.0
+    totalPages.value = 0
+    pdfPages.value = []
+    
+    // 验证URL
+    if (!pdfUrl) {
+      console.error('PDF URL为空')
+      ElMessage.error('PDF文件URL为空，请重新上传')
+      return
+    }
+    
     // 加载PDF文档
-    pdfDoc.value = await pdfjsLib.getDocument(pdfUrl).promise
+    console.log('正在加载PDF文档...')
+    pdfDoc.value = await pdfjsLib.getDocument({
+      url: pdfUrl,
+      cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/cmaps/',
+      cMapPacked: true
+    }).promise
+    
+    console.log('PDF文档加载成功，页数:', pdfDoc.value.numPages)
+    
+    // 检查页数
+    if (pdfDoc.value.numPages === 0) {
+      console.error('PDF文档页数为0，可能是文件格式问题')
+      ElMessage.error('PDF文档页数为0，请检查文件格式是否正确')
+      return
+    }
     
     // 设置页数
-    pdfPages.value = Array.from({ length: pdfDoc.value.numPages }, (_, i) => i + 1)
+    totalPages.value = pdfDoc.value.numPages
+    pdfPages.value = Array.from({ length: totalPages.value }, (_, i) => i + 1)
+    console.log('设置页数完成，总页数:', totalPages.value)
     
-    // 渲染每一页
-    for (let i = 1; i <= pdfDoc.value.numPages; i++) {
-      const page = await pdfDoc.value.getPage(i)
-      const viewport = page.getViewport({ scale: 1.2 })
-      
-      // 获取canvas元素
-      const canvas = pdfCanvasRefs.value[i - 1]
-      if (!canvas) continue
-      
-      // 设置canvas尺寸
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      
-      // 渲染页面
-      const context = canvas.getContext('2d')
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport
-      }
-      await page.render(renderContext).promise
+    // 等待DOM更新完成，确保canvas元素创建
+    await nextTick()
+    // 增加等待时间，确保canvas元素完全创建
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    console.log('canvas引用数量:', pdfCanvas.value.length)
+    
+    // 检查canvas元素
+    if (pdfCanvas.value.length === 0) {
+      console.error('没有找到canvas元素')
+      ElMessage.error('渲染区域初始化失败，请刷新页面重试')
+      return
     }
+    
+    // 渲染所有页面
+    await renderAllPages()
+    
+    ElMessage.success('PDF渲染成功')
   } catch (error) {
     console.error('渲染PDF失败:', error)
+    // 更详细的错误提示
+    if (error.name === 'InvalidPDFException') {
+      ElMessage.error('PDF文件格式无效或损坏，请检查文件')
+    } else if (error.name === 'MissingPDFException') {
+      ElMessage.error('PDF文件不存在或无法访问')
+    } else if (error.name === 'PasswordException') {
+      ElMessage.error('PDF文件需要密码，请提供密码')
+    } else if (error.name === 'UnknownErrorException') {
+      ElMessage.error('PDF文件解析失败，可能是文件格式不兼容')
+    } else {
+      ElMessage.error('PDF渲染失败，请检查文件是否正确')
+    }
+  }
+}
+
+// 渲染所有页面
+const renderAllPages = async () => {
+  if (!pdfDoc.value) return
+  
+  for (let i = 1; i <= totalPages.value; i++) {
+    await renderPage(i)
+  }
+}
+
+// 渲染指定页面
+const renderPage = async (pageNum) => {
+  try {
+    const page = await pdfDoc.value.getPage(pageNum)
+    const viewport = page.getViewport({ scale: zoomLevel.value })
+    
+    // 获取canvas元素，最多尝试3次
+    let canvas = null
+    let attempts = 0
+    while (!canvas && attempts < 3) {
+      canvas = pdfCanvas.value[pageNum - 1]
+      if (!canvas) {
+        attempts++
+        console.warn('找不到第', pageNum, '页的canvas元素，等待后重试...')
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+    }
+    
+    if (!canvas) {
+      console.error('最终未能找到第', pageNum, '页的canvas元素')
+      return
+    }
+    
+    // 设置canvas尺寸
+    canvas.width = viewport.width
+    canvas.height = viewport.height
+    
+    // 渲染页面
+    const context = canvas.getContext('2d')
+    if (!context) {
+      console.error('无法获取canvas上下文')
+      return
+    }
+    
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport
+    }
+    await page.render(renderContext).promise
+    console.log('渲染第', pageNum, '页成功')
+  } catch (error) {
+    console.error('渲染第', pageNum, '页失败:', error)
+  }
+}
+
+// 上一页
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    // 滚动到当前页面
+    scrollToPage(currentPage.value)
+  }
+}
+
+// 下一页
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    // 滚动到当前页面
+    scrollToPage(currentPage.value)
+  }
+}
+
+// 处理缩放变化
+const handleZoomChange = async () => {
+  await renderAllPages()
+}
+
+// 滚动到指定页面
+const scrollToPage = (pageNum) => {
+  const pageElement = pdfCanvas.value[pageNum - 1]
+  if (pageElement) {
+    pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -1361,12 +1513,26 @@ const processFiles = (files) => {
       return
     }
     
-    // 添加到已上传文件列表
-    uploadedFiles.value.push({
-      name: file.name,
-      size: formatFileSize(file.size),
-      file: file
-    })
+    // 模拟上传进度
+    uploadProgress.value = 0
+    const progressInterval = setInterval(() => {
+      uploadProgress.value += 10
+      if (uploadProgress.value >= 100) {
+        clearInterval(progressInterval)
+        // 上传完成后添加到列表
+        uploadedFiles.value.push({
+          name: file.name,
+          size: formatFileSize(file.size),
+          file: file
+        })
+        // 显示上传完成提示
+        ElMessage.success('文件上传完成')
+        // 重置进度
+        setTimeout(() => {
+          uploadProgress.value = 0
+        }, 1000)
+      }
+    }, 200)
   })
 }
 
@@ -1391,18 +1557,33 @@ const continueUpload = () => {
 }
 
 // 保存并退出
-const saveAndExit = () => {
+const saveAndExit = async () => {
   if (uploadedFiles.value.length > 0) {
-    const file = uploadedFiles.value[0].file
-    // 创建临时URL
-    const url = URL.createObjectURL(file)
-    currentPdfUrl.value = url
-    
-    // 渲染PDF
-    renderPdf(url)
-    
-    // 关闭对话框
-    uploadDialogVisible.value = false
+    try {
+      const file = uploadedFiles.value[0].file
+      // 检查文件大小
+      if (file.size === 0) {
+        ElMessage.error('上传的PDF文件为空，请重新上传')
+        return
+      }
+      // 创建临时URL
+      const url = URL.createObjectURL(file)
+      currentPdfUrl.value = url
+      
+      // 关闭对话框
+      uploadDialogVisible.value = false
+      
+      // 等待DOM更新后再渲染PDF
+      await nextTick()
+      // 增加等待时间，确保DOM完全更新
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      console.log('开始渲染上传的PDF文件')
+      await renderPdf(url)
+    } catch (error) {
+      console.error('保存并退出失败:', error)
+      ElMessage.error('处理文件失败，请重试')
+    }
   }
 }
 
@@ -1765,6 +1946,49 @@ const downloadReport = () => {
   margin-bottom: 15px;
   font-size: 16px;
   color: #303133;
+}
+
+/* 上传进度样式 */
+.upload-progress {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.progress-text {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 14px;
+  color: #606266;
+}
+
+/* PDF控制栏样式 */
+.pdf-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #eaeaea;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.page-info {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  min-width: 80px;
+  text-align: center;
+}
+
+.zoom-info {
+  font-size: 14px;
+  color: #606266;
+  min-width: 60px;
+  text-align: center;
 }
 
 .sub-event-edit-card {
