@@ -40,87 +40,6 @@
           </template>
         </el-tree>
       </div>
-      
-      <!-- 约束主题来源选择 -->
-      <div class="constraint-theme-source">
-        <h4>约束主题来源</h4>
-        <el-tabs @tab-click="handleSourceTabClick">
-          <el-tab-pane label="规范标准" name="spec"></el-tab-pane>
-          <el-tab-pane label="法律法规" name="law"></el-tab-pane>
-          <el-tab-pane label="工程知识" name="knowledge"></el-tab-pane>
-          <el-tab-pane label="本地上传" name="upload"></el-tab-pane>
-        </el-tabs>
-        
-        <!-- 规范标准选择 -->
-        <div v-if="activeSourceTab === 'spec'" class="source-content">
-          <el-input v-model="specSearchKeyword" placeholder="搜索规范标准" style="margin-bottom: 12px;">
-            <template #append>
-              <el-button @click="searchSpecs"><el-icon><Search /></el-icon></el-button>
-            </template>
-          </el-input>
-          <el-select v-model="selectedSpecs" multiple placeholder="选择规范标准" style="width: 100%; margin-bottom: 12px;">
-            <el-option v-for="spec in specs" :key="spec.id" :label="`${spec.name} (${spec.code})`" :value="spec.id" />
-          </el-select>
-          <el-button type="primary" size="small" @click="addSpecsToConstraint" style="width: 100%;">添加到约束主题</el-button>
-        </div>
-        
-        <!-- 法律法规选择 -->
-        <div v-if="activeSourceTab === 'law'" class="source-content">
-          <el-input v-model="lawSearchKeyword" placeholder="搜索法律法规" style="margin-bottom: 12px;">
-            <template #append>
-              <el-button @click="searchLaws"><el-icon><Search /></el-icon></el-button>
-            </template>
-          </el-input>
-          <el-select v-model="selectedLaws" multiple placeholder="选择法律法规" style="width: 100%; margin-bottom: 12px;">
-            <el-option v-for="law in laws" :key="law.id" :label="law.name" :value="law.id" />
-          </el-select>
-          <el-button type="primary" size="small" @click="addLawsToConstraint" style="width: 100%;">添加到约束主题</el-button>
-        </div>
-        
-        <!-- 工程知识选择 -->
-        <div v-if="activeSourceTab === 'knowledge'" class="source-content">
-          <el-input v-model="knowledgeSearchKeyword" placeholder="搜索工程知识" style="margin-bottom: 12px;">
-            <template #append>
-              <el-button @click="searchKnowledge"><el-icon><Search /></el-icon></el-button>
-            </template>
-          </el-input>
-          <el-select v-model="selectedKnowledge" multiple placeholder="选择工程知识" style="width: 100%; margin-bottom: 12px;">
-            <el-option v-for="knowledge in knowledgeItems" :key="knowledge.id" :label="knowledge.name" :value="knowledge.id" />
-          </el-select>
-          <el-button type="primary" size="small" @click="addKnowledgeToConstraint" style="width: 100%;">添加到约束主题</el-button>
-        </div>
-        
-        <!-- 本地文件上传 -->
-        <div v-if="activeSourceTab === 'upload'" class="source-content">
-          <el-upload
-            class="upload-source"
-            drag
-            action="#"
-            :auto-upload="false"
-            :on-change="handleLocalFileChange"
-            :on-remove="handleLocalFileRemove"
-            :file-list="localUploadedFiles"
-            :limit="3"
-          >
-            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-            <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
-            <template #tip>
-              <div class="el-upload__tip">
-                支持上传 PDF、DOCX、XLSX 格式文件，单个文件不超过 50MB，最多上传 3 个文件
-              </div>
-            </template>
-          </el-upload>
-          <div v-if="localFileUploadError" class="upload-error">
-            {{ localFileUploadError }}
-          </div>
-          <el-select v-model="localFileCategory" placeholder="选择文件类别" style="width: 100%; margin-top: 12px; margin-bottom: 12px;">
-            <el-option label="规范标准" value="spec" />
-            <el-option label="法律法规" value="law" />
-            <el-option label="工程知识" value="knowledge" />
-          </el-select>
-          <el-button type="primary" size="small" @click="addLocalFilesToConstraint" style="width: 100%;">添加到约束主题</el-button>
-        </div>
-      </div>
     </div>
 
     <!-- 右侧主界面 -->
@@ -355,7 +274,7 @@
     <el-dialog
       v-model="createThemeDialogVisible"
       title="新建约束主题"
-      width="500px"
+      width="700px"
     >
       <el-form :model="newThemeForm" label-width="80px">
         <el-form-item label="约束主题名称" required>
@@ -364,10 +283,125 @@
         <el-form-item label="描述">
           <el-input type="textarea" v-model="newThemeForm.description" placeholder="请输入约束主题描述" rows="3" />
         </el-form-item>
-        <el-form-item label="选择项目" required>
-          <el-select v-model="newThemeForm.itemIds" multiple filterable reserve-keyword placeholder="请输入项目名称或代码搜索">
-            <el-option v-for="item in allItems" :key="item.id" :label="`${item.name} (${item.code || item.type})`" :value="item.id" />
-          </el-select>
+        
+        <!-- 约束清单 -->
+        <el-form-item label="约束清单">
+          <div class="constraint-list">
+            <div v-if="constraintList.length === 0" class="empty-list">
+              <el-icon><Document /></el-icon>
+              <span>暂无约束文档，请从约束来源中添加</span>
+            </div>
+            <div v-else class="list-table">
+              <el-table :data="constraintList" style="width: 100%">
+                <el-table-column prop="name" label="约束名称" min-width="200">
+                  <template #default="scope">
+                    <span>{{ scope.row.name }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="type" label="约束类型" width="120">
+                  <template #default="scope">
+                    <el-tag :type="getTypeTagType(scope.row.type)">{{ scope.row.type }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="来源" width="100">
+                  <template #default="scope">
+                    <el-tag size="small" type="info">
+                      {{ scope.row.id.startsWith('local-') ? '本地上传' : '知识库' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="80" fixed="right">
+                  <template #default="scope">
+                    <el-button size="small" type="danger" @click="removeFromConstraintList(scope.row.id)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </el-form-item>
+        
+        <!-- 约束来源 -->
+        <el-form-item label="约束来源">
+          <el-tabs @tab-click="handleSourceTabClick">
+            <el-tab-pane label="规范标准" name="spec"></el-tab-pane>
+            <el-tab-pane label="法律法规" name="law"></el-tab-pane>
+            <el-tab-pane label="工程知识" name="knowledge"></el-tab-pane>
+            <el-tab-pane label="本地上传" name="upload"></el-tab-pane>
+          </el-tabs>
+          
+          <!-- 规范标准选择 -->
+          <div v-if="activeSourceTab === 'spec'" class="source-content">
+            <el-input v-model="specSearchKeyword" placeholder="搜索规范标准" style="margin-bottom: 12px;">
+              <template #append>
+                <el-button @click="searchSpecs"><el-icon><Search /></el-icon></el-button>
+              </template>
+            </el-input>
+            <el-select v-model="selectedSpecs" multiple placeholder="选择规范标准" style="width: 100%; margin-bottom: 12px;">
+              <el-option v-for="spec in specs" :key="spec.id" :label="`${spec.name} (${spec.code})`" :value="spec.id" />
+            </el-select>
+            <el-button type="primary" size="small" @click="addSpecsToConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
+          
+          <!-- 法律法规选择 -->
+          <div v-if="activeSourceTab === 'law'" class="source-content">
+            <el-input v-model="lawSearchKeyword" placeholder="搜索法律法规" style="margin-bottom: 12px;">
+              <template #append>
+                <el-button @click="searchLaws"><el-icon><Search /></el-icon></el-button>
+              </template>
+            </el-input>
+            <el-select v-model="selectedLaws" multiple placeholder="选择法律法规" style="width: 100%; margin-bottom: 12px;">
+              <el-option v-for="law in laws" :key="law.id" :label="law.name" :value="law.id" />
+            </el-select>
+            <el-button type="primary" size="small" @click="addLawsToConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
+          
+          <!-- 工程知识选择 -->
+          <div v-if="activeSourceTab === 'knowledge'" class="source-content">
+            <el-input v-model="knowledgeSearchKeyword" placeholder="搜索工程知识" style="margin-bottom: 12px;">
+              <template #append>
+                <el-button @click="searchKnowledge"><el-icon><Search /></el-icon></el-button>
+              </template>
+            </el-input>
+            <el-select v-model="selectedKnowledge" multiple placeholder="选择工程知识" style="width: 100%; margin-bottom: 12px;">
+              <el-option v-for="knowledge in knowledgeItems" :key="knowledge.id" :label="knowledge.name" :value="knowledge.id" />
+            </el-select>
+            <el-button type="primary" size="small" @click="addKnowledgeToConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
+          
+          <!-- 本地文件上传 -->
+          <div v-if="activeSourceTab === 'upload'" class="source-content">
+            <el-upload
+              class="upload-source"
+              drag
+              action="#"
+              :auto-upload="false"
+              :on-change="handleLocalFileChange"
+              :on-remove="handleLocalFileRemove"
+              :file-list="localUploadedFiles"
+              :limit="3"
+            >
+              <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+              <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
+              <template #tip>
+                <div class="el-upload__tip">
+                  支持上传 PDF、DOCX、XLSX 格式文件，单个文件不超过 50MB，最多上传 3 个文件
+                </div>
+              </template>
+            </el-upload>
+            <div v-if="localFileUploadError" class="upload-error">
+              {{ localFileUploadError }}
+            </div>
+            <el-select v-model="localFileCategory" placeholder="选择文件类别" style="width: 100%; margin-top: 12px; margin-bottom: 12px;">
+              <el-option label="规范标准" value="spec" />
+              <el-option label="法律法规" value="law" />
+              <el-option label="工程知识" value="knowledge" />
+              <el-option label="自定义" value="custom" />
+            </el-select>
+            <el-input v-if="localFileCategory === 'custom'" v-model="customCategoryName" placeholder="请输入自定义类型名称" style="width: 100%; margin-bottom: 12px;" />
+            <el-button type="primary" size="small" @click="addLocalFilesToConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -382,7 +416,7 @@
     <el-dialog
       v-model="editThemeDialogVisible"
       title="编辑约束主题"
-      width="500px"
+      width="700px"
     >
       <el-form :model="editThemeForm" label-width="80px">
         <el-form-item label="约束主题名称" required>
@@ -391,10 +425,125 @@
         <el-form-item label="描述">
           <el-input type="textarea" v-model="editThemeForm.description" placeholder="请输入约束主题描述" rows="3" />
         </el-form-item>
-        <el-form-item label="选择项目" required>
-          <el-select v-model="editThemeForm.itemIds" multiple filterable reserve-keyword placeholder="请输入项目名称或代码搜索">
-            <el-option v-for="item in allItems" :key="item.id" :label="`${item.name} (${item.code || item.type})`" :value="item.id" />
-          </el-select>
+        
+        <!-- 约束清单 -->
+        <el-form-item label="约束清单">
+          <div class="constraint-list">
+            <div v-if="editConstraintList.length === 0" class="empty-list">
+              <el-icon><Document /></el-icon>
+              <span>暂无约束文档，请从约束来源中添加</span>
+            </div>
+            <div v-else class="list-table">
+              <el-table :data="editConstraintList" style="width: 100%">
+                <el-table-column prop="name" label="约束名称" min-width="200">
+                  <template #default="scope">
+                    <span>{{ scope.row.name }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="type" label="约束类型" width="120">
+                  <template #default="scope">
+                    <el-tag :type="getTypeTagType(scope.row.type)">{{ scope.row.type }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="来源" width="100">
+                  <template #default="scope">
+                    <el-tag size="small" type="info">
+                      {{ scope.row.id.startsWith('local-') ? '本地上传' : '知识库' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="80" fixed="right">
+                  <template #default="scope">
+                    <el-button size="small" type="danger" @click="removeFromEditConstraintList(scope.row.id)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </el-form-item>
+        
+        <!-- 约束来源 -->
+        <el-form-item label="约束来源">
+          <el-tabs @tab-click="handleSourceTabClick">
+            <el-tab-pane label="规范标准" name="spec"></el-tab-pane>
+            <el-tab-pane label="法律法规" name="law"></el-tab-pane>
+            <el-tab-pane label="工程知识" name="knowledge"></el-tab-pane>
+            <el-tab-pane label="本地上传" name="upload"></el-tab-pane>
+          </el-tabs>
+          
+          <!-- 规范标准选择 -->
+          <div v-if="activeSourceTab === 'spec'" class="source-content">
+            <el-input v-model="specSearchKeyword" placeholder="搜索规范标准" style="margin-bottom: 12px;">
+              <template #append>
+                <el-button @click="searchSpecs"><el-icon><Search /></el-icon></el-button>
+              </template>
+            </el-input>
+            <el-select v-model="selectedSpecs" multiple placeholder="选择规范标准" style="width: 100%; margin-bottom: 12px;">
+              <el-option v-for="spec in specs" :key="spec.id" :label="`${spec.name} (${spec.code})`" :value="spec.id" />
+            </el-select>
+            <el-button type="primary" size="small" @click="addSpecsToEditConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
+          
+          <!-- 法律法规选择 -->
+          <div v-if="activeSourceTab === 'law'" class="source-content">
+            <el-input v-model="lawSearchKeyword" placeholder="搜索法律法规" style="margin-bottom: 12px;">
+              <template #append>
+                <el-button @click="searchLaws"><el-icon><Search /></el-icon></el-button>
+              </template>
+            </el-input>
+            <el-select v-model="selectedLaws" multiple placeholder="选择法律法规" style="width: 100%; margin-bottom: 12px;">
+              <el-option v-for="law in laws" :key="law.id" :label="law.name" :value="law.id" />
+            </el-select>
+            <el-button type="primary" size="small" @click="addLawsToEditConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
+          
+          <!-- 工程知识选择 -->
+          <div v-if="activeSourceTab === 'knowledge'" class="source-content">
+            <el-input v-model="knowledgeSearchKeyword" placeholder="搜索工程知识" style="margin-bottom: 12px;">
+              <template #append>
+                <el-button @click="searchKnowledge"><el-icon><Search /></el-icon></el-button>
+              </template>
+            </el-input>
+            <el-select v-model="selectedKnowledge" multiple placeholder="选择工程知识" style="width: 100%; margin-bottom: 12px;">
+              <el-option v-for="knowledge in knowledgeItems" :key="knowledge.id" :label="knowledge.name" :value="knowledge.id" />
+            </el-select>
+            <el-button type="primary" size="small" @click="addKnowledgeToEditConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
+          
+          <!-- 本地文件上传 -->
+          <div v-if="activeSourceTab === 'upload'" class="source-content">
+            <el-upload
+              class="upload-source"
+              drag
+              action="#"
+              :auto-upload="false"
+              :on-change="handleLocalFileChange"
+              :on-remove="handleLocalFileRemove"
+              :file-list="localUploadedFiles"
+              :limit="3"
+            >
+              <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+              <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
+              <template #tip>
+                <div class="el-upload__tip">
+                  支持上传 PDF、DOCX、XLSX 格式文件，单个文件不超过 50MB，最多上传 3 个文件
+                </div>
+              </template>
+            </el-upload>
+            <div v-if="localFileUploadError" class="upload-error">
+              {{ localFileUploadError }}
+            </div>
+            <el-select v-model="localFileCategory" placeholder="选择文件类别" style="width: 100%; margin-top: 12px; margin-bottom: 12px;">
+              <el-option label="规范标准" value="spec" />
+              <el-option label="法律法规" value="law" />
+              <el-option label="工程知识" value="knowledge" />
+              <el-option label="自定义" value="custom" />
+            </el-select>
+            <el-input v-if="localFileCategory === 'custom'" v-model="customCategoryName" placeholder="请输入自定义类型名称" style="width: 100%; margin-bottom: 12px;" />
+            <el-button type="primary" size="small" @click="addLocalFilesToEditConstraint" style="width: 100%;">添加到约束清单</el-button>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -486,6 +635,23 @@ const selectedKnowledge = ref<string[]>([])
 const localUploadedFiles = ref<any[]>([])
 const localFileUploadError = ref('')
 const localFileCategory = ref('spec')
+const customCategoryName = ref('')
+
+// 约束清单相关
+const constraintList = ref<ConstraintItem[]>([])
+const editConstraintList = ref<ConstraintItem[]>([])
+
+// 从约束清单中移除项目
+const removeFromConstraintList = (id: string) => {
+  constraintList.value = constraintList.value.filter(item => item.id !== id)
+  ElMessage.success('已从约束清单中移除')
+}
+
+// 从编辑约束清单中移除项目
+const removeFromEditConstraintList = (id: string) => {
+  editConstraintList.value = editConstraintList.value.filter(item => item.id !== id)
+  ElMessage.success('已从约束清单中移除')
+}
 
 // 数据同步相关
 const syncStatus = ref('idle') // idle, syncing, success, error
@@ -622,7 +788,7 @@ const constraintThemeProps = {
   label: 'label'
 }
 
-const allItems = computed(() => constraintItems.value)
+
 
 const filteredItems = computed(() => {
   if (constraintThemeForm.themeIds.length === 0) {
@@ -656,21 +822,42 @@ const getRiskLevelType = (level: string): string => {
   }
 }
 
+const getTypeTagType = (type: string): string => {
+  switch (type) {
+    case '规范标准':
+      return 'primary'
+    case '法律法规':
+      return 'success'
+    case '工程知识':
+      return 'warning'
+    default:
+      return 'info'
+  }
+}
+
 const createConstraintTheme = () => {
   createThemeDialogVisible.value = true
 }
 
 const submitNewTheme = () => {
-  if (!newThemeForm.name || newThemeForm.itemIds.length === 0) {
-    ElMessage.error('请填写约束主题名称并选择项目')
+  if (!newThemeForm.name) {
+    ElMessage.error('请填写约束主题名称')
     return
   }
+  
+  if (constraintList.value.length === 0) {
+    ElMessage.error('请从约束来源中添加约束文档')
+    return
+  }
+  
+  // 从约束清单中获取项目ID
+  const itemIds = constraintList.value.map(item => item.id)
   
   const newTheme: ConstraintTheme = {
     id: String(constraintThemes.value.length + 1),
     name: newThemeForm.name,
     description: newThemeForm.description,
-    items: newThemeForm.itemIds
+    items: itemIds
   }
   
   constraintThemes.value.push(newTheme)
@@ -679,9 +866,10 @@ const submitNewTheme = () => {
   ElMessage.success('约束主题创建成功')
   createThemeDialogVisible.value = false
   
+  // 重置表单和约束清单
   newThemeForm.name = ''
   newThemeForm.description = ''
-  newThemeForm.itemIds = []
+  constraintList.value = []
 }
 
 const editConstraintTheme = (data: any) => {
@@ -691,15 +879,33 @@ const editConstraintTheme = (data: any) => {
     editThemeForm.name = theme.name
     editThemeForm.description = theme.description
     editThemeForm.itemIds = [...theme.items]
+    
+    // 加载现有的约束项目到编辑约束清单
+    editConstraintList.value = []
+    theme.items.forEach(itemId => {
+      const item = constraintItems.value.find(i => i.id === itemId)
+      if (item) {
+        editConstraintList.value.push(item)
+      }
+    })
+    
     editThemeDialogVisible.value = true
   }
 }
 
 const submitEditTheme = () => {
-  if (!editThemeForm.name || editThemeForm.itemIds.length === 0) {
-    ElMessage.error('请填写约束主题名称并选择项目')
+  if (!editThemeForm.name) {
+    ElMessage.error('请填写约束主题名称')
     return
   }
+  
+  if (editConstraintList.value.length === 0) {
+    ElMessage.error('请从约束来源中添加约束文档')
+    return
+  }
+  
+  // 从约束清单中获取项目ID
+  const itemIds = editConstraintList.value.map(item => item.id)
   
   const index = constraintThemes.value.findIndex(theme => theme.id === editThemeForm.id)
   if (index > -1) {
@@ -707,7 +913,7 @@ const submitEditTheme = () => {
       id: editThemeForm.id,
       name: editThemeForm.name,
       description: editThemeForm.description,
-      items: editThemeForm.itemIds
+      items: itemIds
     }
   }
   
@@ -717,12 +923,15 @@ const submitEditTheme = () => {
       id: editThemeForm.id,
       name: editThemeForm.name,
       description: editThemeForm.description,
-      items: editThemeForm.itemIds
+      items: itemIds
     }
   }
   
   ElMessage.success('约束主题编辑成功')
   editThemeDialogVisible.value = false
+  
+  // 重置编辑约束清单
+  editConstraintList.value = []
 }
 
 const deleteConstraintTheme = (id: string) => {
@@ -952,24 +1161,35 @@ const addSpecsToConstraint = () => {
     return
   }
   
-  // 为选中的规范标准创建约束项目
+  // 为选中的规范标准添加到约束清单
   selectedSpecs.value.forEach(specId => {
     const spec = specs.value.find(s => s.id === specId)
     if (spec) {
-      // 检查是否已存在
-      const existingItem = constraintItems.value.find(item => item.id === specId)
+      // 检查约束清单中是否已存在
+      const existingItem = constraintList.value.find(item => item.id === specId)
       if (!existingItem) {
-        constraintItems.value.push({
+        constraintList.value.push({
           id: specId,
           name: spec.name,
           code: spec.code,
           type: '规范标准'
         })
+        
+        // 同时添加到约束项目列表，确保数据完整性
+        const existingConstraintItem = constraintItems.value.find(item => item.id === specId)
+        if (!existingConstraintItem) {
+          constraintItems.value.push({
+            id: specId,
+            name: spec.name,
+            code: spec.code,
+            type: '规范标准'
+          })
+        }
       }
     }
   })
   
-  ElMessage.success('规范标准已添加到约束主题')
+  ElMessage.success('规范标准已添加到约束清单')
   selectedSpecs.value = []
 }
 
@@ -979,23 +1199,33 @@ const addLawsToConstraint = () => {
     return
   }
   
-  // 为选中的法律法规创建约束项目
+  // 为选中的法律法规添加到约束清单
   selectedLaws.value.forEach(lawId => {
     const law = laws.value.find(l => l.id === lawId)
     if (law) {
-      // 检查是否已存在
-      const existingItem = constraintItems.value.find(item => item.id === lawId)
+      // 检查约束清单中是否已存在
+      const existingItem = constraintList.value.find(item => item.id === lawId)
       if (!existingItem) {
-        constraintItems.value.push({
+        constraintList.value.push({
           id: lawId,
           name: law.name,
           type: '法律法规'
         })
+        
+        // 同时添加到约束项目列表，确保数据完整性
+        const existingConstraintItem = constraintItems.value.find(item => item.id === lawId)
+        if (!existingConstraintItem) {
+          constraintItems.value.push({
+            id: lawId,
+            name: law.name,
+            type: '法律法规'
+          })
+        }
       }
     }
   })
   
-  ElMessage.success('法律法规已添加到约束主题')
+  ElMessage.success('法律法规已添加到约束清单')
   selectedLaws.value = []
 }
 
@@ -1005,23 +1235,33 @@ const addKnowledgeToConstraint = () => {
     return
   }
   
-  // 为选中的工程知识创建约束项目
+  // 为选中的工程知识添加到约束清单
   selectedKnowledge.value.forEach(knowledgeId => {
     const knowledge = knowledgeItems.value.find(k => k.id === knowledgeId)
     if (knowledge) {
-      // 检查是否已存在
-      const existingItem = constraintItems.value.find(item => item.id === knowledgeId)
+      // 检查约束清单中是否已存在
+      const existingItem = constraintList.value.find(item => item.id === knowledgeId)
       if (!existingItem) {
-        constraintItems.value.push({
+        constraintList.value.push({
           id: knowledgeId,
           name: knowledge.name,
           type: '工程知识'
         })
+        
+        // 同时添加到约束项目列表，确保数据完整性
+        const existingConstraintItem = constraintItems.value.find(item => item.id === knowledgeId)
+        if (!existingConstraintItem) {
+          constraintItems.value.push({
+            id: knowledgeId,
+            name: knowledge.name,
+            type: '工程知识'
+          })
+        }
       }
     }
   })
   
-  ElMessage.success('工程知识已添加到约束主题')
+  ElMessage.success('工程知识已添加到约束清单')
   selectedKnowledge.value = []
 }
 
@@ -1085,7 +1325,12 @@ const addLocalFilesToConstraint = () => {
     return
   }
   
-  // 为上传的本地文件创建约束项目
+  if (localFileCategory.value === 'custom' && !customCategoryName.value) {
+    ElMessage.error('请输入自定义类型名称')
+    return
+  }
+  
+  // 为上传的本地文件添加到约束清单
   localUploadedFiles.value.forEach(file => {
     const fileId = `local-${Date.now()}-${Math.floor(Math.random() * 1000)}`
     let type = '规范标准'
@@ -1093,8 +1338,18 @@ const addLocalFilesToConstraint = () => {
       type = '法律法规'
     } else if (localFileCategory.value === 'knowledge') {
       type = '工程知识'
+    } else if (localFileCategory.value === 'custom') {
+      type = customCategoryName.value
     }
     
+    // 添加到约束清单
+    constraintList.value.push({
+      id: fileId,
+      name: file.name,
+      type: type
+    })
+    
+    // 同时添加到约束项目列表，确保数据完整性
     constraintItems.value.push({
       id: fileId,
       name: file.name,
@@ -1102,9 +1357,176 @@ const addLocalFilesToConstraint = () => {
     })
   })
   
-  ElMessage.success('本地文件已添加到约束主题')
+  ElMessage.success('本地文件已添加到约束清单')
   localUploadedFiles.value = []
   localFileCategory.value = 'spec'
+  customCategoryName.value = ''
+  
+  // 触发数据同步
+  syncDataToKnowledgeBase()
+}
+
+// 编辑模式下添加规范标准到约束清单
+const addSpecsToEditConstraint = () => {
+  if (selectedSpecs.value.length === 0) {
+    ElMessage.error('请选择规范标准')
+    return
+  }
+  
+  // 为选中的规范标准添加到约束清单
+  selectedSpecs.value.forEach(specId => {
+    const spec = specs.value.find(s => s.id === specId)
+    if (spec) {
+      // 检查约束清单中是否已存在
+      const existingItem = editConstraintList.value.find(item => item.id === specId)
+      if (!existingItem) {
+        editConstraintList.value.push({
+          id: specId,
+          name: spec.name,
+          code: spec.code,
+          type: '规范标准'
+        })
+        
+        // 同时添加到约束项目列表，确保数据完整性
+        const existingConstraintItem = constraintItems.value.find(item => item.id === specId)
+        if (!existingConstraintItem) {
+          constraintItems.value.push({
+            id: specId,
+            name: spec.name,
+            code: spec.code,
+            type: '规范标准'
+          })
+        }
+      }
+    }
+  })
+  
+  ElMessage.success('规范标准已添加到约束清单')
+  selectedSpecs.value = []
+}
+
+// 编辑模式下添加法律法规到约束清单
+const addLawsToEditConstraint = () => {
+  if (selectedLaws.value.length === 0) {
+    ElMessage.error('请选择法律法规')
+    return
+  }
+  
+  // 为选中的法律法规添加到约束清单
+  selectedLaws.value.forEach(lawId => {
+    const law = laws.value.find(l => l.id === lawId)
+    if (law) {
+      // 检查约束清单中是否已存在
+      const existingItem = editConstraintList.value.find(item => item.id === lawId)
+      if (!existingItem) {
+        editConstraintList.value.push({
+          id: lawId,
+          name: law.name,
+          type: '法律法规'
+        })
+        
+        // 同时添加到约束项目列表，确保数据完整性
+        const existingConstraintItem = constraintItems.value.find(item => item.id === lawId)
+        if (!existingConstraintItem) {
+          constraintItems.value.push({
+            id: lawId,
+            name: law.name,
+            type: '法律法规'
+          })
+        }
+      }
+    }
+  })
+  
+  ElMessage.success('法律法规已添加到约束清单')
+  selectedLaws.value = []
+}
+
+// 编辑模式下添加工程知识到约束清单
+const addKnowledgeToEditConstraint = () => {
+  if (selectedKnowledge.value.length === 0) {
+    ElMessage.error('请选择工程知识')
+    return
+  }
+  
+  // 为选中的工程知识添加到约束清单
+  selectedKnowledge.value.forEach(knowledgeId => {
+    const knowledge = knowledgeItems.value.find(k => k.id === knowledgeId)
+    if (knowledge) {
+      // 检查约束清单中是否已存在
+      const existingItem = editConstraintList.value.find(item => item.id === knowledgeId)
+      if (!existingItem) {
+        editConstraintList.value.push({
+          id: knowledgeId,
+          name: knowledge.name,
+          type: '工程知识'
+        })
+        
+        // 同时添加到约束项目列表，确保数据完整性
+        const existingConstraintItem = constraintItems.value.find(item => item.id === knowledgeId)
+        if (!existingConstraintItem) {
+          constraintItems.value.push({
+            id: knowledgeId,
+            name: knowledge.name,
+            type: '工程知识'
+          })
+        }
+      }
+    }
+  })
+  
+  ElMessage.success('工程知识已添加到约束清单')
+  selectedKnowledge.value = []
+}
+
+// 编辑模式下添加本地文件到约束清单
+const addLocalFilesToEditConstraint = () => {
+  if (localUploadedFiles.value.length === 0) {
+    ElMessage.error('请上传本地文件')
+    return
+  }
+  
+  if (!localFileCategory.value) {
+    ElMessage.error('请选择文件类别')
+    return
+  }
+  
+  if (localFileCategory.value === 'custom' && !customCategoryName.value) {
+    ElMessage.error('请输入自定义类型名称')
+    return
+  }
+  
+  // 为上传的本地文件添加到约束清单
+  localUploadedFiles.value.forEach(file => {
+    const fileId = `local-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+    let type = '规范标准'
+    if (localFileCategory.value === 'law') {
+      type = '法律法规'
+    } else if (localFileCategory.value === 'knowledge') {
+      type = '工程知识'
+    } else if (localFileCategory.value === 'custom') {
+      type = customCategoryName.value
+    }
+    
+    // 添加到约束清单
+    editConstraintList.value.push({
+      id: fileId,
+      name: file.name,
+      type: type
+    })
+    
+    // 同时添加到约束项目列表，确保数据完整性
+    constraintItems.value.push({
+      id: fileId,
+      name: file.name,
+      type: type
+    })
+  })
+  
+  ElMessage.success('本地文件已添加到约束清单')
+  localUploadedFiles.value = []
+  localFileCategory.value = 'spec'
+  customCategoryName.value = ''
   
   // 触发数据同步
   syncDataToKnowledgeBase()
@@ -1254,31 +1676,85 @@ const rollbackToVersion = (version: string) => {
     }
   }
   
-  /* 约束主题来源 */
-  .constraint-theme-source {
-    padding: 20px;
-    border-top: 1px solid #e4e7ed;
-    background-color: #f8f9fa;
+  /* 约束项目来源 */
+  .source-content {
+    margin-top: 16px;
     
-    h4 {
-      margin: 0 0 16px 0;
-      font-size: 14px;
-      font-weight: 600;
-      color: #303133;
+    .upload-source {
+      margin-bottom: 12px;
     }
     
-    .source-content {
-      margin-top: 16px;
+    .upload-error {
+      color: #f56c6c;
+      font-size: 12px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+  }
+  
+  /* 约束清单样式 */
+  .constraint-list {
+    border: 1px solid #e4e7ed;
+    border-radius: 4px;
+    padding: 16px;
+    min-height: 120px;
+    background-color: #f9fafc;
+    
+    .empty-list {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: #909399;
+      font-size: 14px;
       
-      .upload-source {
-        margin-bottom: 12px;
+      .el-icon {
+        font-size: 24px;
+        margin-bottom: 8px;
       }
-      
-      .upload-error {
-        color: #f56c6c;
-        font-size: 12px;
-        margin-top: 8px;
-        margin-bottom: 12px;
+    }
+    
+    .list-table {
+      .el-table {
+        border: 1px solid #e4e7ed;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+    }
+    
+    .list-items {
+      .list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid #e4e7ed;
+        border-radius: 4px;
+        background-color: #ffffff;
+        margin-bottom: 8px;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+        
+        .item-info {
+          flex: 1;
+          
+          .item-name {
+            font-weight: 500;
+            color: #303133;
+            margin-bottom: 4px;
+          }
+          
+          .item-type {
+            font-size: 12px;
+            color: #909399;
+          }
+        }
+        
+        .el-button {
+          margin-left: 12px;
+        }
       }
     }
   }
