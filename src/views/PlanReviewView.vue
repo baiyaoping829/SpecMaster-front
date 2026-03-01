@@ -116,7 +116,7 @@
       <!-- 方案上传 -->
       <div class="plan-upload">
         <el-card shadow="hover">
-          <h3>方案上传</h3>
+          <h3>被审方案上传</h3>
           <el-upload
             class="upload-demo"
             drag
@@ -169,12 +169,127 @@
               <el-select v-model="planForm.keywords" multiple placeholder="请输入关键词">
                 <el-option v-for="keyword in planForm.keywords" :key="keyword" :label="keyword" :value="keyword" />
               </el-select>
-              <el-input v-model="newKeyword" placeholder="输入关键词后按回车" @keyup.enter="addKeyword" style="margin-top: 8px;" />
+              <el-input v-model="newKeyword" placeholder="输入关键词后按回车" @keyup.enter="addKeyword" style="margin-top: 8px; width: 100%;" />
             </el-form-item>
           </el-form>
 
           <div class="upload-actions">
-            <el-button type="primary" @click="startReview">开始审查</el-button>
+            <el-button @click="intelligentFillForm" type="primary" style="margin-left: auto;">智能填表</el-button>
+          </div>
+
+        </el-card>
+      </div>
+
+      <!-- 智能问答模块 -->
+      <div class="intelligent-qa-module">
+        <el-card shadow="hover">
+          <h3>智能审查</h3>
+          <div class="qa-container">
+            <!-- 模型和模式选择 -->
+            <div class="qa-header">
+              <div class="model-selector">
+                <span>模型选择：</span>
+                <el-select v-model="modelConfig.models" multiple placeholder="选择模型（最多3个）" style="width: 200px; margin-right: 16px;" :multiple-limit="3">
+                  <el-option label="Qwen" value="qwen" />
+                  <el-option label="Deepseek" value="deepseek" />
+                  <el-option label="GPT-4" value="gpt4" />
+                  <el-option label="Claude" value="claude" />
+                  <el-option label="Llama 3" value="llama3" />
+                </el-select>
+                <span>任务模式：</span>
+                <el-select v-model="modelConfig.mode" placeholder="选择模式" style="width: 120px; margin-right: 16px;">
+                  <el-option label="问答模式" value="qa" />
+                  <el-option label="摘要模式" value="summary" />
+                  <el-option label="翻译模式" value="translate" />
+                  <el-option label="审查模式" value="review" />
+                </el-select>
+                <el-button @click="openPromptLibraryDialog" style="margin-right: 16px;">
+                  <el-icon><Collection /></el-icon>
+                  提示词库
+                </el-button>
+                <span>网络检索：</span>
+                <el-switch v-model="modelConfig.useWebSearch" />
+              </div>
+            </div>
+
+            <!-- 对话历史 -->
+            <div class="chat-history">
+              <div class="conversation-history-container">
+                <div 
+                  v-for="(message, index) in chatMessages" 
+                  :key="index" 
+                  class="message-item" 
+                  :class="{ 'user-message': message.role === 'user', 'ai-message': message.role === 'assistant' }"
+                  @mouseenter="hoveredMessageIndex = index"
+                  @mouseleave="hoveredMessageIndex = -1"
+                >
+                  <div class="message-header">
+                    <span class="message-role">{{ message.role === 'user' ? '我' : 'AI' }}</span>
+                    <div class="message-header-right">
+                      <span class="message-time">{{ message.timestamp }}</span>
+                      <el-button 
+                        v-show="hoveredMessageIndex === index"
+                        size="small" 
+                        @click="copyMessageContent(message.content)" 
+                        style="margin-left: 8px;"
+                      >
+                        <el-icon><DocumentCopy /></el-icon>
+                      </el-button>
+                    </div>
+                  </div>
+                  <div class="message-content">{{ message.content }}</div>
+                  <div v-if="message.references && message.references.length > 0" class="message-references">
+                    <div class="references-title">参考来源：</div>
+                    <ul class="references-list">
+                      <li v-for="(ref, refIndex) in message.references" :key="refIndex">
+                        {{ ref.name }} ({{ ref.code }}) - {{ ref.section }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="chat-input">
+              <div class="prompt-selector" style="margin-bottom: 12px; display: flex; align-items: center;">
+                <span style="margin-right: 8px;">提示词选择：</span>
+                <el-select v-model="modelConfig.promptId" placeholder="选择提示词" style="width: 150px; flex-shrink: 0;">
+                    <el-option label="无提示词" value="" />
+                    <el-option label="默认提示词" value="default" />
+                    <el-option v-for="prompt in promptTemplates" :key="prompt.id" :label="prompt.name" :value="prompt.id" />
+                  </el-select>
+              </div>
+              <el-input
+                v-model="userInput"
+                type="textarea"
+                :rows="3"
+                placeholder="请输入您的问题..."
+                @keyup.enter.exact="handleSend"
+                style="min-height: 80px; width: 100%;"
+              />
+              <div class="input-actions">
+                <el-button @click="startReview" type="primary" style="margin-left: auto;">开始审查</el-button>
+                <el-button @click="clearChat" style="margin-left: 8px;">清空对话</el-button>
+                <el-button type="primary" @click="handleSend" style="margin-left: 8px;">发送</el-button>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </div>
+
+      <!-- 审查进度 -->
+      <div v-if="isReviewing" class="review-progress">
+        <el-card shadow="hover">
+          <h3>审查进度</h3>
+          <el-progress :percentage="reviewProgress" :format="() => `${reviewProgress}%`" />
+          <div class="model-status-list">
+            <div v-for="result in modelReviewResults" :key="result.model" class="model-status-item">
+              <span class="model-name">{{ result.model }}</span>
+              <el-tag :type="result.status === 'completed' ? 'success' : result.status === 'error' ? 'danger' : 'warning'">
+                {{ result.status === 'completed' ? '已完成' : result.status === 'error' ? '失败' : '进行中' }}
+              </el-tag>
+            </div>
           </div>
         </el-card>
       </div>
@@ -183,33 +298,93 @@
       <div v-if="showReviewResult" class="review-result">
         <el-card shadow="hover">
           <h3>审查结果</h3>
-          <div class="review-content">
-            <h4>审查意见</h4>
-            <div class="review-opinion">
-              {{ reviewOpinion }}
-            </div>
-
-            <h4>修改建议</h4>
-            <div class="review-suggestions">
-              <el-collapse>
-                <el-collapse-item v-for="(suggestion, index) in reviewSuggestions" :key="index" :title="`问题 ${index + 1}: ${suggestion.issue}`">
-                  <div class="suggestion-content">
-                    <p><strong>问题描述：</strong>{{ suggestion.issue }}</p>
-                    <p><strong>修改建议：</strong>{{ suggestion.suggestion }}</p>
-                    <p><strong>依据标准：</strong>{{ suggestion.standard }}</p>
-                    <p><strong>风险等级：</strong>
-                      <el-tag :type="getRiskLevelType(suggestion.riskLevel)">
-                        {{ suggestion.riskLevel }}
-                      </el-tag>
-                    </p>
+          
+          <!-- 多模型审查结果 -->
+          <div class="multi-model-results">
+            <h4>多模型审查意见</h4>
+            <el-tabs type="border-card">
+              <el-tab-pane v-for="result in modelReviewResults" :key="result.model" :label="result.model">
+                <div class="model-review-content">
+                  <div class="model-opinion">
+                    <strong>审查意见：</strong>
+                    <p>{{ result.opinion }}</p>
                   </div>
-                </el-collapse-item>
-              </el-collapse>
-            </div>
-
-            <div class="review-actions">
-              <el-button @click="downloadReport">下载审查报告</el-button>
-              <el-button type="primary" @click="confirmReview">确认审查</el-button>
+                  <div class="model-suggestions">
+                    <strong>修改建议：</strong>
+                    <el-collapse>
+                      <el-collapse-item v-for="(suggestion, index) in result.suggestions" :key="index" :title="`问题 ${index + 1}: ${suggestion.issue}`">
+                        <div class="suggestion-content">
+                          <p><strong>问题描述：</strong>{{ suggestion.issue }}</p>
+                          <p><strong>修改建议：</strong>{{ suggestion.suggestion }}</p>
+                          <p><strong>依据标准：</strong>{{ suggestion.standard }}</p>
+                          <p><strong>风险等级：</strong>
+                            <el-tag :type="getRiskLevelType(suggestion.riskLevel)">
+                              {{ suggestion.riskLevel }}
+                            </el-tag>
+                          </p>
+                        </div>
+                      </el-collapse-item>
+                    </el-collapse>
+                  </div>
+                  <div class="model-timestamp">
+                    审查时间：{{ result.timestamp }}
+                  </div>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+          
+          <!-- 智能汇审功能 -->
+          <div class="intelligent-assembly">
+            <h4>智能汇审</h4>
+            <div class="assembly-content">
+              <div v-if="!finalReviewResult" class="assembly-actions">
+                <el-button type="primary" @click="startAssemblyReview">开始智能汇审</el-button>
+                <el-tooltip content="智能汇审将综合分析各模型的审查意见，生成结构化、专业、全面的最终审查意见" placement="top">
+                  <el-icon class="info-icon"><InfoFilled /></el-icon>
+                </el-tooltip>
+              </div>
+              <div v-else class="final-review-result">
+                <div class="final-opinion">
+                  <strong>最终审查意见：</strong>
+                  <p>{{ finalReviewResult.opinion }}</p>
+                </div>
+                <div class="final-suggestions">
+                  <strong>综合修改建议：</strong>
+                  <el-collapse>
+                    <el-collapse-item v-for="(suggestion, index) in finalReviewResult.suggestions" :key="index" :title="`问题 ${index + 1}: ${suggestion.issue}`">
+                      <div class="suggestion-content">
+                        <p><strong>问题描述：</strong>{{ suggestion.issue }}</p>
+                        <p><strong>修改建议：</strong>{{ suggestion.suggestion }}</p>
+                        <p><strong>依据标准：</strong>{{ suggestion.standard }}</p>
+                        <p><strong>风险等级：</strong>
+                          <el-tag :type="getRiskLevelType(suggestion.riskLevel)">
+                            {{ suggestion.riskLevel }}
+                          </el-tag>
+                        </p>
+                        <p v-if="suggestion.models && suggestion.models.length > 0" class="suggestion-models">
+                          <strong>来源模型：</strong>
+                          <el-tag v-for="model in suggestion.models" :key="model" size="small" type="info" style="margin-right: 4px;">
+                            {{ model }}
+                          </el-tag>
+                        </p>
+                      </div>
+                    </el-collapse-item>
+                  </el-collapse>
+                </div>
+                <div class="final-highlights">
+                  <strong>审查要点：</strong>
+                  <div class="highlights-tags">
+                    <el-tag v-for="highlight in finalReviewResult.highlights" :key="highlight" type="warning" size="small" style="margin-right: 4px; margin-bottom: 4px;">
+                      {{ highlight }}
+                    </el-tag>
+                  </div>
+                </div>
+                <div class="final-actions">
+                  <el-button @click="exportReviewReport">导出审查报告</el-button>
+                  <el-button type="primary" @click="confirmReview">确认审查</el-button>
+                </div>
+              </div>
             </div>
           </div>
         </el-card>
@@ -553,13 +728,79 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 提示词库对话框 -->
+    <el-dialog
+      v-model="promptLibraryDialogVisible"
+      title="提示词库"
+      width="800px"
+    >
+      <!-- 提示词列表 -->
+      <div class="prompt-list">
+        <h4>预定义提示词模板</h4>
+        <el-table :data="promptTemplates" style="width: 100%; margin-bottom: 20px;">
+          <el-table-column prop="name" label="名称" width="120" />
+          <el-table-column prop="description" label="描述" />
+          <el-table-column label="操作" width="120">
+            <template #default="{ row }">
+              <el-button 
+                size="small" 
+                @click="editPrompt(row)"
+              >
+                <el-icon><Edit /></el-icon>
+              </el-button>
+              <el-button 
+                size="small" 
+                type="danger" 
+                @click="deletePrompt(row.id)"
+                :disabled="row.id === 'default'"
+              >
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <!-- 添加新提示词 -->
+      <div class="add-prompt">
+        <h4>{{ isEditing ? '编辑提示词' : '添加新提示词' }}</h4>
+        <el-form :model="newPromptForm" label-width="100px">
+          <el-form-item label="提示词名称" required>
+            <el-input v-model="newPromptForm.name" placeholder="请输入提示词名称" />
+          </el-form-item>
+          <el-form-item label="描述">
+            <el-input v-model="newPromptForm.description" placeholder="请输入提示词描述" />
+          </el-form-item>
+          <el-form-item label="提示词内容" required>
+            <el-input 
+              type="textarea" 
+              v-model="newPromptForm.content" 
+              placeholder="请输入提示词内容" 
+              rows="4" 
+            />
+            <div class="form-actions" style="margin-top: 10px; text-align: right;">
+              <el-button @click="addNewPrompt">增加提示词</el-button>
+              <el-button v-if="isEditing" type="primary" @click="submitNewPrompt">保存修改</el-button>
+            </div>
+          </el-form-item>
+        </el-form>
+      </div>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="promptLibraryDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveAndExit">保存退出</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowUp, ArrowDown, Edit, Delete, Plus, FolderAdd, InfoFilled, UploadFilled, Search, Refresh } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, Edit, Delete, Plus, FolderAdd, InfoFilled, UploadFilled, Search, Refresh, Collection, DocumentCopy } from '@element-plus/icons-vue'
 
 // 类型定义
 interface ConstraintTheme {
@@ -582,6 +823,26 @@ interface ReviewSuggestion {
   suggestion: string
   standard: string
   riskLevel: string
+}
+
+interface Reference {
+  name: string
+  code: string
+  section: string
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+  references: Reference[]
+}
+
+interface PromptTemplate {
+  id: string
+  name: string
+  content: string
+  description: string
 }
 
 // 响应式数据
@@ -636,6 +897,78 @@ const localUploadedFiles = ref<any[]>([])
 const localFileUploadError = ref('')
 const localFileCategory = ref('spec')
 const customCategoryName = ref('')
+
+// 智能问答相关
+const modelConfig = reactive({
+  models: [] as string[],
+  mode: 'qa',
+  promptId: 'default',
+  useWebSearch: false
+})
+
+// 提示词模板
+const promptTemplates = ref<PromptTemplate[]>([
+  {
+    id: 'default',
+    name: '默认提示词',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，回答用户的问题。回答要准确、清晰、专业，引用相关规范的具体条款。',
+    description: '通用的规范问答提示词'
+  },
+  {
+    id: 'detailed',
+    name: '详细解释',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，详细回答用户的问题。不仅要给出答案，还要解释相关规范的背景、原理和应用场景，帮助用户深入理解。',
+    description: '提供详细解释的提示词'
+  },
+  {
+    id: 'summary',
+    name: '总结概括',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，对用户的问题进行总结概括。回答要简洁明了，重点突出，抓住核心要点。',
+    description: '用于总结概括的提示词'
+  },
+  {
+    id: 'comparison',
+    name: '对比分析',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，对用户提到的不同规范或条款进行对比分析。指出它们的异同点，帮助用户理解它们之间的关系。',
+    description: '用于对比分析的提示词'
+  },
+  {
+    id: 'review',
+    name: '审查提示词',
+    content: '你是一个专业的方案审查助手，请根据提供的约束主题和规范标准内容，对用户上传的方案进行审查。分析方案是否符合相关规范要求，指出存在的问题，并提供具体的修改建议。',
+    description: '用于方案审查的提示词'
+  }
+])
+
+// 提示词库对话框
+const promptLibraryDialogVisible = ref(false)
+const isEditing = ref(false)
+const editingPromptId = ref('')
+const newPromptForm = reactive({
+  name: '',
+  content: '',
+  description: ''
+})
+
+// 对话相关
+const userInput = ref('')
+const chatMessages = ref<ChatMessage[]>([
+  {
+    role: 'assistant',
+    content: '您好！我是规范智答助手，请问有什么可以帮助您的问题？',
+    timestamp: new Date().toLocaleString(),
+    references: []
+  }
+])
+
+const recommendedQuestions = ref([
+  '建筑设计防火规范中对防火墙的要求是什么？',
+  '混凝土结构设计规范中对钢筋的要求是什么？',
+  '建筑抗震设计规范中对建筑高度的限制是什么？'
+])
+
+// 鼠标悬浮消息索引
+const hoveredMessageIndex = ref(-1)
 
 // 约束清单相关
 const constraintList = ref<ConstraintItem[]>([])
@@ -1119,17 +1452,251 @@ const addKeyword = () => {
   }
 }
 
-const startReview = () => {
-  console.log('开始审查', planForm)
-  showReviewResult.value = true
+// 多模型审查结果
+interface ModelReviewResult {
+  model: string
+  opinion: string
+  suggestions: ReviewSuggestion[]
+  timestamp: string
+  status: 'pending' | 'completed' | 'error'
+}
+
+// 最终审查结果（带模型来源）
+interface FinalReviewSuggestion extends ReviewSuggestion {
+  models: string[]
+}
+
+interface FinalReviewResult {
+  opinion: string
+  suggestions: FinalReviewSuggestion[]
+  highlights: string[]
+  timestamp: string
+}
+
+const modelReviewResults = ref<ModelReviewResult[]>([])
+const finalReviewResult = ref<FinalReviewResult | null>(null)
+const isReviewing = ref(false)
+const reviewProgress = ref(0)
+
+// 开始多模型并行审查
+const startReview = async () => {
+  if (modelConfig.models.length === 0) {
+    ElMessage.error('请至少选择一个模型进行审查')
+    return
+  }
+  
+  if (uploadedFiles.value.length === 0) {
+    ElMessage.error('请先上传方案文件')
+    return
+  }
+  
+  isReviewing.value = true
+  reviewProgress.value = 0
+  showReviewResult.value = false
+  
+  // 初始化模型审查结果
+  modelReviewResults.value = modelConfig.models.map(model => ({
+    model,
+    opinion: '',
+    suggestions: [],
+    timestamp: new Date().toLocaleString(),
+    status: 'pending'
+  }))
+  
+  ElMessage.info(`开始使用 ${modelConfig.models.length} 个模型进行并行审查...`)
+  
+  try {
+    // 并行执行多模型审查
+    const reviewPromises = modelConfig.models.map(async (model, index) => {
+      // 模拟模型审查过程
+      await new Promise(resolve => setTimeout(resolve, 2000 + index * 500))
+      
+      // 模拟各模型的审查结果
+      const modelOpinions: Record<string, string> = {
+        qwen: '根据对方案的审查，发现以下问题：1. 安全措施不够完善；2. 进度计划存在不合理之处；3. 资源配置需要优化。',
+        deepseek: '审查结果显示，该方案在以下方面需要改进：1. 质量保证措施需加强；2. 安全管理计划不全面；3. 施工工艺选择有待优化。',
+        gpt4: '经过详细分析，该方案存在以下问题：1. 安全措施不到位；2. 质量控制体系不健全；3. 进度安排不合理；4. 资源配置不均衡。',
+        claude: '审查发现方案存在以下不足：1. 安全管理措施不完善；2. 质量保证体系不健全；3. 进度计划安排不合理；4. 资源配置需要优化。',
+        llama3: '方案审查结果：1. 安全措施需要加强；2. 质量控制计划不全面；3. 进度安排存在缺陷；4. 资源配置不合理。'
+      }
+      
+      const modelSuggestions: Record<string, ReviewSuggestion[]> = {
+        qwen: [
+          { issue: '安全措施不够完善', suggestion: '增加详细的安全管理计划和应急预案', standard: '建筑施工安全检查标准 (JGJ59-2011)', riskLevel: '高' },
+          { issue: '进度计划存在不合理之处', suggestion: '重新调整施工进度计划，确保各工序合理衔接', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' },
+          { issue: '资源配置需要优化', suggestion: '根据施工进度计划，合理配置人力、材料和设备资源', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' }
+        ],
+        deepseek: [
+          { issue: '质量保证措施需加强', suggestion: '建立完善的质量保证体系，增加质量检查点', standard: '建设工程质量管理条例', riskLevel: '高' },
+          { issue: '安全管理计划不全面', suggestion: '制定详细的安全管理计划，包括安全培训、安全检查等内容', standard: '建筑施工安全检查标准 (JGJ59-2011)', riskLevel: '高' },
+          { issue: '施工工艺选择有待优化', suggestion: '根据工程特点，选择更加合理的施工工艺', standard: '建筑施工技术统一标准 (GB50354-2015)', riskLevel: '中' }
+        ],
+        gpt4: [
+          { issue: '安全措施不到位', suggestion: '加强安全措施，增加安全防护设施', standard: '建筑施工安全检查标准 (JGJ59-2011)', riskLevel: '高' },
+          { issue: '质量控制体系不健全', suggestion: '建立健全的质量控制体系，加强过程控制', standard: '建设工程质量管理条例', riskLevel: '高' },
+          { issue: '进度安排不合理', suggestion: '优化施工进度计划，合理安排各工序', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' },
+          { issue: '资源配置不均衡', suggestion: '根据施工进度，均衡配置资源', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' }
+        ],
+        claude: [
+          { issue: '安全管理措施不完善', suggestion: '完善安全管理措施，加强安全监督', standard: '建筑施工安全检查标准 (JGJ59-2011)', riskLevel: '高' },
+          { issue: '质量保证体系不健全', suggestion: '建立健全质量保证体系，加强质量检查', standard: '建设工程质量管理条例', riskLevel: '高' },
+          { issue: '进度计划安排不合理', suggestion: '调整进度计划，确保施工顺利进行', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' },
+          { issue: '资源配置需要优化', suggestion: '优化资源配置，提高资源利用效率', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' }
+        ],
+        llama3: [
+          { issue: '安全措施需要加强', suggestion: '加强安全措施，确保施工安全', standard: '建筑施工安全检查标准 (JGJ59-2011)', riskLevel: '高' },
+          { issue: '质量控制计划不全面', suggestion: '制定全面的质量控制计划，加强质量监督', standard: '建设工程质量管理条例', riskLevel: '高' },
+          { issue: '进度安排存在缺陷', suggestion: '修复进度安排中的缺陷，确保按时完成', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' },
+          { issue: '资源配置不合理', suggestion: '合理配置资源，提高施工效率', standard: '建设工程项目管理规范 (GB/T50326-2017)', riskLevel: '中' }
+        ]
+      }
+      
+      // 更新模型审查结果
+      const resultIndex = modelReviewResults.value.findIndex(r => r.model === model)
+      if (resultIndex !== -1) {
+        modelReviewResults.value[resultIndex] = {
+          model,
+          opinion: modelOpinions[model] || '审查完成',
+          suggestions: modelSuggestions[model] || [],
+          timestamp: new Date().toLocaleString(),
+          status: 'completed'
+        }
+      }
+      
+      // 更新审查进度
+      reviewProgress.value = Math.round(((index + 1) / modelConfig.models.length) * 100)
+    })
+    
+    // 等待所有模型审查完成
+    await Promise.all(reviewPromises)
+    
+    ElMessage.success('多模型并行审查完成')
+    showReviewResult.value = true
+  } catch (error) {
+    ElMessage.error('审查过程中出现错误')
+    console.error('审查错误:', error)
+  } finally {
+    isReviewing.value = false
+  }
+}
+
+// 智能填表功能
+const intelligentFillForm = async () => {
+  if (uploadedFiles.value.length === 0) {
+    ElMessage.error('请先上传方案文件')
+    return
+  }
+  
+  // 模拟大语言模型处理过程
+  ElMessage.info('正在分析上传的方案文件...')
+  
+  try {
+    // 模拟处理时间
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // 模拟大语言模型对方案的理解和提取
+    // 实际项目中，这里应该调用后端API，使用大语言模型分析上传的文件
+    
+    // 智能填充表单数据
+    planForm.projectSummary = '本方案针对某办公楼建筑工程的施工组织设计，包括施工部署、施工进度计划、资源配置、质量保证措施等内容。项目总建筑面积为15000平方米，地上12层，地下2层，计划工期为180天。'
+    planForm.basis = '1. 建筑设计防火规范 (GB 50016-2014)\n2. 混凝土结构设计规范 (GB 50010-2010)\n3. 建筑抗震设计规范 (GB 50011-2010)\n4. 建筑地基基础设计规范 (GB 50007-2011)\n5. 建设工程质量管理条例'
+    planForm.purpose = '指导该办公楼建筑工程的施工组织与管理，确保工程质量、安全、进度和成本目标的实现'
+    planForm.keywords = ['办公楼', '施工组织设计', '质量保证', '安全措施', '进度计划']
+    
+    ElMessage.success('智能填表完成，已自动填充表单数据')
+  } catch (error) {
+    ElMessage.error('智能填表失败，请重试')
+    console.error('智能填表错误:', error)
+  }
+}
+
+// 智能汇审功能
+const startAssemblyReview = async () => {
+  if (modelReviewResults.value.length === 0) {
+    ElMessage.error('请先完成多模型审查')
+    return
+  }
+  
+  ElMessage.info('正在进行智能汇审...')
+  
+  try {
+    // 模拟汇审处理时间
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 收集所有模型的审查意见和建议
+    const allSuggestions: { [key: string]: { suggestion: ReviewSuggestion, models: string[] } } = {}
+    
+    modelReviewResults.value.forEach(result => {
+      result.suggestions.forEach(suggestion => {
+        // 基于问题描述进行去重
+        const key = suggestion.issue.trim()
+        if (allSuggestions[key]) {
+          allSuggestions[key].models.push(result.model)
+        } else {
+          allSuggestions[key] = { suggestion, models: [result.model] }
+        }
+      })
+    })
+    
+    // 转换为数组并按风险等级排序
+    const consolidatedSuggestions: FinalReviewSuggestion[] = Object.values(allSuggestions).map(({ suggestion, models }) => ({
+      ...suggestion,
+      models
+    })).sort((a, b) => {
+      const riskOrder = { '高': 0, '中': 1, '低': 2 }
+      return (riskOrder[a.riskLevel as keyof typeof riskOrder] || 3) - (riskOrder[b.riskLevel as keyof typeof riskOrder] || 3)
+    })
+    
+    // 提取审查要点
+    const highlights = Array.from(new Set(
+      consolidatedSuggestions.map(s => s.issue.split('：')[0] || s.issue)
+    ))
+    
+    // 生成最终审查意见
+    const finalOpinion = `根据${modelReviewResults.value.length}个模型的审查结果，综合分析如下：\n\n` +
+      `1. 安全管理方面：${consolidatedSuggestions.filter(s => s.issue.includes('安全')).length}个问题，主要集中在安全措施不完善、安全管理计划不全面等方面\n` +
+      `2. 质量管理方面：${consolidatedSuggestions.filter(s => s.issue.includes('质量')).length}个问题，主要集中在质量保证体系不健全、质量控制计划不全面等方面\n` +
+      `3. 进度管理方面：${consolidatedSuggestions.filter(s => s.issue.includes('进度')).length}个问题，主要集中在进度计划不合理、进度安排存在缺陷等方面\n` +
+      `4. 资源管理方面：${consolidatedSuggestions.filter(s => s.issue.includes('资源')).length}个问题，主要集中在资源配置不合理、资源配置不均衡等方面\n\n` +
+      `建议重点关注高风险问题，优先解决安全和质量相关的问题，确保施工方案的可行性和安全性。`
+    
+    // 生成最终审查结果
+    finalReviewResult.value = {
+      opinion: finalOpinion,
+      suggestions: consolidatedSuggestions,
+      highlights,
+      timestamp: new Date().toLocaleString()
+    }
+    
+    ElMessage.success('智能汇审完成')
+  } catch (error) {
+    ElMessage.error('智能汇审失败，请重试')
+    console.error('汇审错误:', error)
+  }
+}
+
+// 导出审查报告
+const exportReviewReport = () => {
+  if (!finalReviewResult.value) {
+    ElMessage.error('请先完成智能汇审')
+    return
+  }
+  
+  // 模拟导出功能
+  ElMessage.info('正在导出审查报告...')
+  setTimeout(() => {
+    ElMessage.success('审查报告导出成功')
+  }, 1000)
+}
+
+// 确认审查
+const confirmReview = () => {
+  ElMessage.success('审查已确认')
+  // 这里可以添加确认后的处理逻辑
 }
 
 const downloadReport = () => {
   console.log('下载审查报告')
-}
-
-const confirmReview = () => {
-  console.log('确认审查')
 }
 
 // 约束主题来源相关方法
@@ -1601,6 +2168,232 @@ const rollbackToVersion = (version: string) => {
     // 取消回滚
   })
 }
+
+// 智能问答相关方法
+
+// 加载知识主题文档到RAG库
+const loadKnowledgeBaseToRAG = () => {
+  // 模拟加载知识主题文档到RAG库的过程
+  console.log('正在加载知识主题文档到RAG库...')
+  // 实际项目中，这里应该调用后端API来加载文档到RAG库
+  // 例如：return api.loadKnowledgeBaseToRAG(loadedConstraintThemes.value)
+  return Promise.resolve('知识主题文档加载到RAG库成功')
+}
+
+// 执行网络检索
+const performWebSearch = (_query: string, _themeIds: string[]) => {
+  // 模拟网络检索过程
+  console.log('正在执行网络检索...')
+  // 实际项目中，这里应该调用后端API来执行网络检索
+  // 例如：return api.performWebSearch(query, themeIds)
+  return Promise.resolve('网络检索完成')
+}
+
+const handleSend = async () => {
+  if (!userInput.value.trim()) return
+
+  // 添加用户消息
+  const userMessage: ChatMessage = {
+    role: 'user',
+    content: userInput.value,
+    timestamp: new Date().toLocaleString(),
+    references: []
+  }
+  chatMessages.value.push(userMessage)
+
+  // 清空输入框
+  const tempInput = userInput.value
+  userInput.value = ''
+
+  // 加载知识主题文档到RAG库
+  await loadKnowledgeBaseToRAG()
+
+  // 模拟AI回复（基于RAG技术）
+  setTimeout(async () => {
+    let references: Reference[] = []
+    let content = ''
+
+    // 检查是否选择了无提示词
+    const hasPrompt = modelConfig.promptId !== ''
+
+    if (modelConfig.useWebSearch) {
+      // 执行网络检索
+      await performWebSearch(tempInput, constraintThemeForm.themeIds)
+      if (hasPrompt) {
+        content = `根据约束主题的内容和网络检索结果，${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...\n\n网络检索补充：...`
+      } else {
+        content = `${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...\n\n网络检索补充：...`
+      }
+      references = [
+        { name: '建筑设计防火规范', code: 'GB 50016-2014', section: '3.1.1' },
+        { name: '混凝土结构设计规范', code: 'GB 50010-2010', section: '4.2.1' },
+        { name: '建筑抗震设计规范', code: 'GB 50011-2010', section: '5.1.1' },
+        { name: '网络检索结果', code: 'WEB', section: '相关信息' }
+      ]
+    } else {
+      if (hasPrompt) {
+        content = `根据约束主题的内容，${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...`
+      } else {
+        content = `${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...`
+      }
+      references = [
+        { name: '建筑设计防火规范', code: 'GB 50016-2014', section: '3.1.1' },
+        { name: '混凝土结构设计规范', code: 'GB 50010-2010', section: '4.2.1' },
+        { name: '建筑抗震设计规范', code: 'GB 50011-2010', section: '5.1.1' }
+      ]
+    }
+
+    const aiMessage: ChatMessage = {
+      role: 'assistant',
+      content: content,
+      timestamp: new Date().toLocaleString(),
+      references: references
+    }
+    chatMessages.value.push(aiMessage)
+  }, 1000)
+}
+
+const clearChat = () => {
+  chatMessages.value = [
+    {
+      role: 'assistant',
+      content: '您好！我是规范智答助手，请问有什么可以帮助您的问题？',
+      timestamp: new Date().toLocaleString(),
+      references: []
+    }
+  ]
+}
+
+const useRecommendedQuestion = (question: string) => {
+  userInput.value = question
+  handleSend()
+}
+
+// 复制消息内容到剪贴板并填充到输入框
+const copyMessageContent = (content: string) => {
+  // 复制到剪贴板
+  navigator.clipboard.writeText(content).then(() => {
+    // 填充到输入框
+    userInput.value = content
+    ElMessage.success('消息内容已复制并填充到输入框')
+  }).catch(() => {
+    ElMessage.error('复制失败，请手动复制')
+  })
+}
+
+// 打开提示词库对话框
+const openPromptLibraryDialog = () => {
+  // 重置编辑状态
+  isEditing.value = false
+  editingPromptId.value = ''
+  // 重置表单
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+  promptLibraryDialogVisible.value = true
+}
+
+// 编辑提示词
+const editPrompt = (prompt: PromptTemplate) => {
+  isEditing.value = true
+  editingPromptId.value = prompt.id
+  newPromptForm.name = prompt.name
+  newPromptForm.content = prompt.content
+  newPromptForm.description = prompt.description
+}
+
+// 增加提示词
+const addNewPrompt = () => {
+  if (!newPromptForm.name || !newPromptForm.content) {
+    ElMessage.error('请填写提示词名称和内容')
+    return
+  }
+  
+  // 添加新提示词
+  const newPrompt: PromptTemplate = {
+    id: `prompt-${Date.now()}`,
+    name: newPromptForm.name,
+    content: newPromptForm.content,
+    description: newPromptForm.description
+  }
+  
+  promptTemplates.value.push(newPrompt)
+  ElMessage.success('提示词添加成功')
+  
+  // 重置表单，但保持编辑状态不变
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+}
+
+// 提交新提示词或编辑提示词
+const submitNewPrompt = () => {
+  if (!newPromptForm.name || !newPromptForm.content) {
+    ElMessage.error('请填写提示词名称和内容')
+    return
+  }
+  
+  if (isEditing.value) {
+    // 编辑现有提示词
+    const index = promptTemplates.value.findIndex(p => p.id === editingPromptId.value)
+    if (index > -1) {
+      promptTemplates.value[index] = {
+        id: editingPromptId.value,
+        name: newPromptForm.name,
+        content: newPromptForm.content,
+        description: newPromptForm.description
+      }
+      ElMessage.success('提示词编辑成功')
+    }
+  } else {
+    // 添加新提示词
+    const newPrompt: PromptTemplate = {
+      id: `prompt-${Date.now()}`,
+      name: newPromptForm.name,
+      content: newPromptForm.content,
+      description: newPromptForm.description
+    }
+    
+    promptTemplates.value.push(newPrompt)
+    ElMessage.success('提示词添加成功')
+  }
+  
+  // 重置表单和编辑状态
+  isEditing.value = false
+  editingPromptId.value = ''
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+}
+
+// 保存退出
+const saveAndExit = () => {
+  promptLibraryDialogVisible.value = false
+  // 重置编辑状态
+  isEditing.value = false
+  editingPromptId.value = ''
+  // 重置表单
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+}
+
+// 删除提示词
+const deletePrompt = (id: string) => {
+  if (id === 'default') {
+    ElMessage.error('默认提示词不能删除')
+    return
+  }
+  
+  promptTemplates.value = promptTemplates.value.filter(prompt => prompt.id !== id)
+  
+  // 如果当前选择的提示词被删除，切换到默认提示词
+  if (modelConfig.promptId === id) {
+    modelConfig.promptId = 'default'
+  }
+  
+  ElMessage.success('提示词删除成功')
+}
 </script>
 
 <style lang="scss" scoped>
@@ -1721,44 +2514,345 @@ const rollbackToVersion = (version: string) => {
         overflow: hidden;
       }
     }
-    
-    .list-items {
-      .list-item {
+  }
+  
+  /* 智能问答模块 */
+  .intelligent-qa-module {
+    margin-bottom: 20px;
+  }
+
+  /* 智能问答界面 */
+  .qa-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 500px;
+    height: auto;
+
+    /* 模型和模式选择 */
+    .qa-header {
+      padding: 12px 0;
+      border-bottom: 1px solid #e4e7ed;
+      margin-bottom: 16px;
+
+      .model-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+    }
+
+    /* 对话历史 */
+    .chat-history {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 0;
+      border-bottom: 1px solid #e4e7ed;
+      margin-bottom: 16px;
+
+      .conversation-history-container {
+        width: 100%;
+      }
+
+      .message-item {
+        margin-bottom: 16px;
+        width: 100%;
+        
+        &.user-message {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+        }
+        
+        &.ai-message {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+
+      .message-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px;
-        border: 1px solid #e4e7ed;
-        border-radius: 4px;
-        background-color: #ffffff;
         margin-bottom: 8px;
+        font-size: 12px;
+        color: #909399;
+        width: 100%;
+        max-width: 80%;
+        
+        .user-message & {
+          justify-content: flex-end;
+        }
+        
+        .ai-message & {
+          justify-content: flex-start;
+        }
+        
+        .message-role {
+          font-weight: 500;
+        }
+        
+        .message-header-right {
+          display: flex;
+          align-items: center;
+        }
+        
+        .message-time {
+          margin-right: 8px;
+        }
+      }
+
+      .message-content {
+        padding: 12px;
+        border-radius: 4px;
+        line-height: 1.6;
+        width: 100%;
+        max-width: 80%;
+        
+        .user-message & {
+          background-color: #ecf5ff;
+          color: #409EFF;
+          border-top-right-radius: 0;
+        }
+        
+        .ai-message & {
+          background-color: #f5f7fa;
+          color: #606266;
+          border-top-left-radius: 0;
+        }
+      }
+
+      .message-references {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #909399;
+        width: 100%;
+        max-width: 80%;
+        
+        .references-title {
+          margin-bottom: 4px;
+        }
+        
+        .references-list {
+          list-style: none;
+          padding-left: 16px;
+          
+          li {
+            margin-bottom: 2px;
+          }
+        }
+      }
+    }
+
+    /* 输入区域 */
+    .chat-input {
+      padding: 0;
+      min-height: 150px;
+      box-sizing: border-box;
+
+      .prompt-selector {
+        margin-bottom: 12px;
+      }
+
+      .input-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+      }
+    }
+  }
+
+  /* 提示词库样式 */
+  .add-prompt {
+    padding-left: 30px;
+  }
+  
+  .list-items {
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid #e4e7ed;
+      border-radius: 4px;
+      background-color: #ffffff;
+      margin-bottom: 8px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .item-info {
+        flex: 1;
+        
+        .item-name {
+          font-weight: 500;
+          color: #303133;
+          margin-bottom: 4px;
+        }
+        
+        .item-type {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+      
+      .el-button {
+        margin-left: 12px;
+      }
+    }
+  }
+  
+  /* 审查进度样式 */
+  .review-progress {
+    margin-bottom: 20px;
+    
+    .model-status-list {
+      margin-top: 16px;
+      
+      .model-status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
         
         &:last-child {
-          margin-bottom: 0;
+          border-bottom: none;
         }
         
-        .item-info {
-          flex: 1;
-          
-          .item-name {
-            font-weight: 500;
-            color: #303133;
-            margin-bottom: 4px;
-          }
-          
-          .item-type {
-            font-size: 12px;
-            color: #909399;
-          }
-        }
-        
-        .el-button {
-          margin-left: 12px;
+        .model-name {
+          font-weight: 500;
         }
       }
     }
   }
+  
+  /* 多模型审查结果样式 */
+  .multi-model-results {
+    margin-bottom: 24px;
+    
+    h4 {
+      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .model-review-content {
+      padding: 16px;
+      background-color: #f9fafc;
+      border-radius: 4px;
+      
+      .model-opinion {
+        margin-bottom: 16px;
+        
+        p {
+          margin-top: 8px;
+          line-height: 1.6;
+        }
+      }
+      
+      .model-suggestions {
+        margin-bottom: 16px;
+        
+        .el-collapse {
+          margin-top: 8px;
+        }
+      }
+      
+      .model-timestamp {
+        font-size: 12px;
+        color: #909399;
+        margin-top: 12px;
+      }
+    }
+  }
+  
+  /* 智能汇审样式 */
+  .intelligent-assembly {
+    
+    h4 {
+      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .assembly-content {
+      
+      .assembly-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 20px;
+        background-color: #f9fafc;
+        border-radius: 4px;
+        
+        .info-icon {
+          font-size: 16px;
+          color: #409EFF;
+          cursor: help;
+        }
+      }
+      
+      .final-review-result {
+        padding: 16px;
+        background-color: #f9fafc;
+        border-radius: 4px;
+        
+        .final-opinion {
+          margin-bottom: 16px;
+          
+          p {
+            margin-top: 8px;
+            line-height: 1.6;
+          }
+        }
+        
+        .final-suggestions {
+          margin-bottom: 16px;
+          
+          .el-collapse {
+            margin-top: 8px;
+          }
+          
+          .suggestion-models {
+            margin-top: 8px;
+          }
+        }
+        
+        .final-highlights {
+          margin-bottom: 16px;
+          
+          .highlights-tags {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+          }
+        }
+        
+        .final-actions {
+          margin-top: 20px;
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+        }
+      }
+    }
+  }
+  
+  /* 上传操作样式 */
+  .upload-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+  }
 }
+
+/* 右侧主界面 */
 
 /* 右侧主界面 */
 .main-content {
