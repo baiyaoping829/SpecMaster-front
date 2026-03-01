@@ -138,15 +138,23 @@
             <template #file-list="{ files }">
               <div class="file-list">
                 <div v-for="(file, index) in files" :key="file.uid" class="file-item">
-                  <span class="file-name">{{ file.name }}</span>
-                  <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                  <el-button
-                    size="small"
-                    type="danger"
-                    @click="handleFileRemove(file, index)"
-                  >
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
+                  <div class="file-info">
+                    <span class="file-name">{{ file.name }}</span>
+                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                    <el-tag v-if="file.status === 'success'" size="small" type="success">成功</el-tag>
+                  </div>
+                  <div v-if="file.status === 'uploading'" class="file-progress">
+                    <el-progress :percentage="file.progress" :stroke-width="10" :show-text="false" />
+                  </div>
+                  <div class="file-actions">
+                    <el-button
+                      size="small"
+                      type="danger"
+                      @click="handleFileRemove(file, index)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -305,31 +313,56 @@
             <el-tabs type="border-card">
               <el-tab-pane v-for="result in modelReviewResults" :key="result.model" :label="result.model">
                 <div class="model-review-content">
-                  <div class="model-opinion">
-                    <strong>审查意见：</strong>
-                    <p>{{ result.opinion }}</p>
+                    <div class="model-opinion">
+                      <strong>审查意见：</strong>
+                      <p>{{ result.opinion }}</p>
+                    </div>
+                    <div class="model-suggestions">
+                      <strong>修改建议：</strong>
+                      <el-collapse>
+                        <el-collapse-item v-for="(suggestion, index) in result.suggestions" :key="index" :title="`问题 ${index + 1}: ${suggestion.issue}`">
+                          <div class="suggestion-content">
+                            <div class="suggestion-header">
+                              <p><strong>问题描述：</strong>{{ suggestion.issue }}</p>
+                              <div 
+                                class="suggestion-status" 
+                                @click="toggleModelSuggestionStatus(result.model, index)"
+                                :class="suggestion.status || 'pending'"
+                                style="padding: 4px 12px; border-radius: 12px; font-size: 12px; cursor: pointer; background-color: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff;"
+                              >
+                                <span>{{ 
+                                  (suggestion.status || 'pending') === 'pending' ? '待处理' : 
+                                  (suggestion.status || 'pending') === 'accepted' ? '采纳' : 
+                                  (suggestion.status || 'pending') === 'rejected' ? '不采纳' : '修改采纳' 
+                                }}</span>
+                              </div>
+                            </div>
+                            <p><strong>修改建议：</strong>{{ suggestion.suggestion }}</p>
+                            <p><strong>依据标准：</strong>{{ suggestion.standard }}</p>
+                            <p><strong>风险等级：</strong>
+                              <el-tag :type="getRiskLevelType(suggestion.riskLevel)">
+                                {{ suggestion.riskLevel }}
+                              </el-tag>
+                            </p>
+                            <div v-if="(suggestion.status || 'pending') === 'modified'" class="modification-input">
+                              <p><strong>修改采纳方式：</strong></p>
+                              <el-input
+                                :id="`model-modification-input-${result.model}-${index}`"
+                                v-model="suggestion.modification"
+                                type="textarea"
+                                :rows="2"
+                                placeholder="请输入修改采纳的具体方式..."
+                                @input="handleModelModificationInput(result.model, index, suggestion.modification || '')"
+                              />
+                            </div>
+                          </div>
+                        </el-collapse-item>
+                      </el-collapse>
+                    </div>
+                    <div class="model-timestamp">
+                      审查时间：{{ result.timestamp }}
+                    </div>
                   </div>
-                  <div class="model-suggestions">
-                    <strong>修改建议：</strong>
-                    <el-collapse>
-                      <el-collapse-item v-for="(suggestion, index) in result.suggestions" :key="index" :title="`问题 ${index + 1}: ${suggestion.issue}`">
-                        <div class="suggestion-content">
-                          <p><strong>问题描述：</strong>{{ suggestion.issue }}</p>
-                          <p><strong>修改建议：</strong>{{ suggestion.suggestion }}</p>
-                          <p><strong>依据标准：</strong>{{ suggestion.standard }}</p>
-                          <p><strong>风险等级：</strong>
-                            <el-tag :type="getRiskLevelType(suggestion.riskLevel)">
-                              {{ suggestion.riskLevel }}
-                            </el-tag>
-                          </p>
-                        </div>
-                      </el-collapse-item>
-                    </el-collapse>
-                  </div>
-                  <div class="model-timestamp">
-                    审查时间：{{ result.timestamp }}
-                  </div>
-                </div>
               </el-tab-pane>
             </el-tabs>
           </div>
@@ -354,7 +387,21 @@
                   <el-collapse>
                     <el-collapse-item v-for="(suggestion, index) in finalReviewResult.suggestions" :key="index" :title="`问题 ${index + 1}: ${suggestion.issue}`">
                       <div class="suggestion-content">
-                        <p><strong>问题描述：</strong>{{ suggestion.issue }}</p>
+                        <div class="suggestion-header">
+                          <p><strong>问题描述：</strong>{{ suggestion.issue }}</p>
+                          <div 
+                            class="suggestion-status" 
+                            @click="toggleSuggestionStatus(index)"
+                            :class="suggestion.status"
+                            style="padding: 4px 12px; border-radius: 12px; font-size: 12px; cursor: pointer; background-color: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff;"
+                          >
+                            <span>{{ 
+                              suggestion.status === 'pending' ? '待处理' : 
+                              suggestion.status === 'accepted' ? '采纳' : 
+                              suggestion.status === 'rejected' ? '不采纳' : '修改采纳' 
+                            }}</span>
+                          </div>
+                        </div>
                         <p><strong>修改建议：</strong>{{ suggestion.suggestion }}</p>
                         <p><strong>依据标准：</strong>{{ suggestion.standard }}</p>
                         <p><strong>风险等级：</strong>
@@ -368,6 +415,17 @@
                             {{ model }}
                           </el-tag>
                         </p>
+                        <div v-if="suggestion.status === 'modified'" class="modification-input">
+                          <p><strong>修改采纳方式：</strong></p>
+                          <el-input
+                            :id="`modification-input-${index}`"
+                            v-model="suggestion.modification"
+                            type="textarea"
+                            :rows="2"
+                            placeholder="请输入修改采纳的具体方式..."
+                            @input="handleModificationInput(index, suggestion.modification || '')"
+                          />
+                        </div>
                       </div>
                     </el-collapse-item>
                   </el-collapse>
@@ -382,6 +440,7 @@
                 </div>
                 <div class="final-actions">
                   <el-button @click="exportReviewReport">导出审查报告</el-button>
+                  <el-button @click="openExpertSignatureDialog">专家签名</el-button>
                   <el-button type="primary" @click="confirmReview">确认审查</el-button>
                 </div>
               </div>
@@ -794,13 +853,83 @@
         </span>
       </template>
     </el-dialog>
+    
+    <!-- 专家签名对话框 -->
+    <el-dialog
+      v-model="expertSignatureDialogVisible"
+      title="专家签名"
+      width="700px"
+    >
+      <div class="signature-container">
+        <el-form :model="expertInfo" label-width="80px">
+          <el-form-item label="专家姓名" required>
+            <el-input v-model="expertInfo.name" placeholder="请输入专家姓名" />
+          </el-form-item>
+          <el-form-item label="专家职称" required>
+            <el-input v-model="expertInfo.title" placeholder="请输入专家职称" />
+          </el-form-item>
+          <el-form-item label="签名选择">
+            <div class="signature-selection">
+              <el-radio-group v-model="signatureMode" @change="handleSignatureModeChange">
+                <el-radio label="draw">手绘签名</el-radio>
+                <el-radio label="select">选择已有签名</el-radio>
+              </el-radio-group>
+              
+              <!-- 手绘签名 -->
+              <div v-if="signatureMode === 'draw'" class="signature-pad" ref="signaturePad">
+                <canvas ref="signatureCanvas" width="600" height="200" style="border: 1px solid #e4e7ed; border-radius: 4px;"></canvas>
+                <div class="signature-actions">
+                  <el-button size="small" @click="clearSignature">清除签名</el-button>
+                  <el-button size="small" type="primary" @click="saveSignature">保存签名</el-button>
+                </div>
+              </div>
+              
+              <!-- 选择已有签名 -->
+              <div v-if="signatureMode === 'select'" class="signature-library">
+                <div class="signature-grid">
+                  <div 
+                    v-for="signature in availableSignatures" 
+                    :key="signature.id"
+                    class="signature-item"
+                    :class="{ active: selectedSignatureId === signature.id }"
+                    @click="selectExistingSignature(signature)"
+                  >
+                    <img :src="signature.url" :alt="signature.name" class="signature-image" />
+                    <div class="signature-info">
+                      <span class="signature-name">{{ signature.name }}</span>
+                      <span class="signature-date">{{ signature.uploadDate }}</span>
+                    </div>
+                  </div>
+                  
+                  <div v-if="availableSignatures.length === 0" class="empty-signatures">
+                    <el-icon class="empty-icon"><Picture /></el-icon>
+                    <p>暂无签名，请先在签名管理页面上传</p>
+                    <el-button type="primary" @click="navigateToSignatureManagement">
+                      <el-icon><Setting /></el-icon> 前往签名管理
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-form-item>
+        </el-form>
+      </div>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="expertSignatureDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmSignature">确认签名</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowUp, ArrowDown, Edit, Delete, Plus, FolderAdd, InfoFilled, UploadFilled, Search, Refresh, Collection, DocumentCopy } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, Edit, Delete, Plus, FolderAdd, InfoFilled, UploadFilled, Search, Refresh, Collection, DocumentCopy, Picture, Setting } from '@element-plus/icons-vue'
 
 // 类型定义
 interface ConstraintTheme {
@@ -823,6 +952,8 @@ interface ReviewSuggestion {
   suggestion: string
   standard: string
   riskLevel: string
+  status?: 'pending' | 'accepted' | 'rejected' | 'modified'
+  modification?: string
 }
 
 interface Reference {
@@ -845,6 +976,13 @@ interface PromptTemplate {
   description: string
 }
 
+interface Signature {
+  id: string
+  name: string
+  url: string
+  uploadDate: string
+}
+
 // 响应式数据
 const constraintThemeForm = reactive({
   themeIds: [] as string[],
@@ -859,6 +997,9 @@ const planForm = reactive({
 })
 
 const newKeyword = ref('')
+
+// 路由实例
+const router = useRouter()
 const showReviewResult = ref(false)
 
 // 文件上传相关
@@ -1420,9 +1561,32 @@ const handleFileChange = (file: any) => {
     return
   }
   
-  // 添加文件到上传列表
-  uploadedFiles.value.push(file)
-  console.log('文件上传成功:', file.name)
+  // 添加文件到上传列表，并添加上传状态
+  const fileWithStatus = {
+    ...file,
+    status: 'uploading' as 'uploading' | 'success' | 'error',
+    progress: 0
+  }
+  uploadedFiles.value.push(fileWithStatus)
+  
+  // 模拟上传进度
+  simulateUploadProgress(fileWithStatus)
+}
+
+// 模拟上传进度
+const simulateUploadProgress = (file: any) => {
+  const interval = setInterval(() => {
+    if (file.progress < 100) {
+      file.progress += Math.floor(Math.random() * 10) + 5
+      if (file.progress > 100) {
+        file.progress = 100
+      }
+    } else {
+      clearInterval(interval)
+      file.status = 'success'
+      console.log('文件上传成功:', file.name)
+    }
+  }, 300)
 }
 
 const handleFileRemove = (file: any, index?: number) => {
@@ -1464,6 +1628,8 @@ interface ModelReviewResult {
 // 最终审查结果（带模型来源）
 interface FinalReviewSuggestion extends ReviewSuggestion {
   models: string[]
+  status: 'pending' | 'accepted' | 'rejected' | 'modified'
+  modification?: string
 }
 
 interface FinalReviewResult {
@@ -1641,7 +1807,8 @@ const startAssemblyReview = async () => {
     // 转换为数组并按风险等级排序
     const consolidatedSuggestions: FinalReviewSuggestion[] = Object.values(allSuggestions).map(({ suggestion, models }) => ({
       ...suggestion,
-      models
+      models,
+      status: 'pending' as const
     })).sort((a, b) => {
       const riskOrder = { '高': 0, '中': 1, '低': 2 }
       return (riskOrder[a.riskLevel as keyof typeof riskOrder] || 3) - (riskOrder[b.riskLevel as keyof typeof riskOrder] || 3)
@@ -1689,9 +1856,367 @@ const exportReviewReport = () => {
   }, 1000)
 }
 
+// 切换意见状态
+const toggleSuggestionStatus = (index: number) => {
+  if (!finalReviewResult.value) return
+  
+  const suggestion = finalReviewResult.value.suggestions[index]
+  if (!suggestion) return
+  
+  // 状态轮换顺序：pending -> accepted -> rejected -> modified -> pending
+  switch (suggestion.status) {
+    case 'pending':
+      suggestion.status = 'accepted'
+      break
+    case 'accepted':
+      suggestion.status = 'rejected'
+      break
+    case 'rejected':
+      suggestion.status = 'modified'
+      // 当切换到修改采纳状态时，打开输入框让用户输入修改内容
+      setTimeout(() => {
+        const inputEl = document.getElementById(`modification-input-${index}`)
+        if (inputEl) {
+          (inputEl as HTMLInputElement).focus()
+        }
+      }, 100)
+      break
+    case 'modified':
+      suggestion.status = 'pending'
+      // 重置修改内容
+      suggestion.modification = undefined
+      break
+  }
+}
+
+// 处理修改内容输入
+const handleModificationInput = (index: number, value: string) => {
+  if (!finalReviewResult.value) return
+  finalReviewResult.value.suggestions[index].modification = value
+}
+
+// 切换模型建议状态
+const toggleModelSuggestionStatus = (model: string, index: number) => {
+  const result = modelReviewResults.value.find(r => r.model === model)
+  if (!result) return
+  
+  const suggestion = result.suggestions[index]
+  if (!suggestion) return
+  
+  // 状态轮换顺序：pending -> accepted -> rejected -> modified -> pending
+  const currentStatus = suggestion.status || 'pending'
+  switch (currentStatus) {
+    case 'pending':
+      suggestion.status = 'accepted'
+      break
+    case 'accepted':
+      suggestion.status = 'rejected'
+      break
+    case 'rejected':
+      suggestion.status = 'modified'
+      // 当切换到修改采纳状态时，打开输入框让用户输入修改内容
+      setTimeout(() => {
+        const inputEl = document.getElementById(`model-modification-input-${model}-${index}`)
+        if (inputEl) {
+          (inputEl as HTMLInputElement).focus()
+        }
+      }, 100)
+      break
+    case 'modified':
+      suggestion.status = 'pending'
+      // 重置修改内容
+      suggestion.modification = undefined
+      break
+  }
+}
+
+// 处理模型修改内容输入
+const handleModelModificationInput = (model: string, index: number, value: string) => {
+  const result = modelReviewResults.value.find(r => r.model === model)
+  if (!result) return
+  result.suggestions[index].modification = value
+}
+
+// 专家签名相关
+const expertSignatureDialogVisible = ref(false)
+const expertInfo = reactive({
+  name: '',
+  title: '',
+  signature: ''
+})
+const signatureCanvas = ref<HTMLCanvasElement | null>(null)
+const isExpertSigned = ref(false)
+
+// 全局签名状态管理
+const globalSignatureState = {
+  selectedSignature: null as Signature | null,
+  listeners: [] as ((signature: Signature | null) => void)[],
+  
+  setSelectedSignature(signature: Signature | null) {
+    this.selectedSignature = signature
+    this.listeners.forEach(listener => listener(signature))
+  },
+  
+  addListener(listener: (signature: Signature | null) => void) {
+    this.listeners.push(listener)
+  },
+  
+  removeListener(listener: (signature: Signature | null) => void) {
+    this.listeners = this.listeners.filter(l => l !== listener)
+  }
+}
+
+// 签名管理相关
+const signatureMode = ref<'draw' | 'select'>('draw')
+const availableSignatures = ref<Signature[]>([
+  {
+    id: '1',
+    name: '专家签名1',
+    url: 'https://via.placeholder.com/200x100?text=Signature+1',
+    uploadDate: '2026-03-01'
+  },
+  {
+    id: '2',
+    name: '专家签名2',
+    url: 'https://via.placeholder.com/200x100?text=Signature+2',
+    uploadDate: '2026-03-01'
+  },
+  {
+    id: '3',
+    name: '专家签名3',
+    url: 'https://via.placeholder.com/200x100?text=Signature+3',
+    uploadDate: '2026-03-01'
+  }
+])
+const selectedSignatureId = ref<string>('')
+
+// 监听全局签名状态变化
+const handleSignatureChange = (signature: Signature | null) => {
+  if (signature) {
+    selectedSignatureId.value = signature.id
+    expertInfo.signature = signature.url
+  }
+}
+
+// 添加监听器
+globalSignatureState.addListener(handleSignatureChange)
+
+// 打开专家签名对话框
+const openExpertSignatureDialog = () => {
+  expertSignatureDialogVisible.value = true
+  // 初始化签名画布
+  setTimeout(() => {
+    if (signatureCanvas.value) {
+      const canvas = signatureCanvas.value
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        
+        // 设置画笔样式
+        ctx.lineWidth = 2
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.strokeStyle = '#000'
+        
+        // 鼠标事件处理
+        let isDrawing = false
+        let lastX = 0
+        let lastY = 0
+        
+        const startDrawing = (e: MouseEvent) => {
+          isDrawing = true
+          const rect = canvas.getBoundingClientRect()
+          lastX = e.clientX - rect.left
+          lastY = e.clientY - rect.top
+        }
+        
+        const draw = (e: MouseEvent) => {
+          if (!isDrawing) return
+          const rect = canvas.getBoundingClientRect()
+          const x = e.clientX - rect.left
+          const y = e.clientY - rect.top
+          
+          ctx.beginPath()
+          ctx.moveTo(lastX, lastY)
+          ctx.lineTo(x, y)
+          ctx.stroke()
+          
+          lastX = x
+          lastY = y
+        }
+        
+        const stopDrawing = () => {
+          isDrawing = false
+        }
+        
+        // 添加事件监听器
+        canvas.addEventListener('mousedown', startDrawing)
+        canvas.addEventListener('mousemove', draw)
+        canvas.addEventListener('mouseup', stopDrawing)
+        canvas.addEventListener('mouseout', stopDrawing)
+      }
+    }
+  }, 100)
+}
+
+// 清除签名
+const clearSignature = () => {
+  if (signatureCanvas.value) {
+    const canvas = signatureCanvas.value
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+    }
+  }
+}
+
+// 保存签名
+const saveSignature = () => {
+  if (signatureCanvas.value) {
+    expertInfo.signature = signatureCanvas.value.toDataURL('image/png')
+    ElMessage.success('签名已保存')
+  }
+}
+
+// 处理签名模式切换
+const handleSignatureModeChange = () => {
+  if (signatureMode.value === 'draw') {
+    // 切换到手绘模式时初始化画布
+    setTimeout(() => {
+      if (signatureCanvas.value) {
+        const canvas = signatureCanvas.value
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          
+          // 设置画笔样式
+          ctx.lineWidth = 2
+          ctx.lineCap = 'round'
+          ctx.lineJoin = 'round'
+          ctx.strokeStyle = '#000'
+        }
+      }
+    }, 100)
+  }
+}
+
+// 选择已有签名
+const selectExistingSignature = (signature: Signature) => {
+  selectedSignatureId.value = signature.id
+  expertInfo.signature = signature.url
+  ElMessage.success('已选择签名')
+}
+
+// 导航到签名管理页面
+const navigateToSignatureManagement = () => {
+  expertSignatureDialogVisible.value = false
+  router.push('/expert-signature')
+}
+
+// 确认签名
+const confirmSignature = () => {
+  if (!expertInfo.name || !expertInfo.title) {
+    ElMessage.error('请填写专家姓名和职称')
+    return
+  }
+  if (!expertInfo.signature) {
+    ElMessage.error('请完成签名')
+    return
+  }
+  
+  isExpertSigned.value = true
+  expertSignatureDialogVisible.value = false
+  ElMessage.success('专家签名已确认')
+}
+
+// 审查版本管理
+const reviewVersions = ref<{[key: string]: number}>({})
+
+// 生成审查意见文档
+const generateReviewDocument = () => {
+  if (!finalReviewResult.value) return null
+  
+  // 收集被采纳的修改意见
+  const acceptedSuggestions = finalReviewResult.value.suggestions.filter(s => 
+    s.status === 'accepted' || s.status === 'modified'
+  )
+  
+  // 生成审查意见内容
+  let documentContent = `# 施工方案审查意见\n\n`
+  documentContent += `## 审查信息\n`
+  documentContent += `审查日期: ${new Date().toLocaleDateString()}\n`
+  documentContent += `审查类型: ${isExpertSigned.value ? '专家审查' : 'AI审查'}\n`
+  if (isExpertSigned.value) {
+    documentContent += `审查专家: ${expertInfo.name} (${expertInfo.title})\n`
+  }
+  documentContent += `\n`
+  
+  documentContent += `## 审查意见\n`
+  documentContent += `${finalReviewResult.value.opinion}\n\n`
+  
+  documentContent += `## 采纳的修改建议\n`
+  if (acceptedSuggestions.length === 0) {
+    documentContent += `无\n`
+  } else {
+    acceptedSuggestions.forEach((suggestion, index) => {
+      documentContent += `### 问题 ${index + 1}: ${suggestion.issue}\n`
+      documentContent += `**修改建议:** ${suggestion.status === 'modified' && suggestion.modification ? suggestion.modification : suggestion.suggestion}\n`
+      documentContent += `**依据标准:** ${suggestion.standard}\n`
+      documentContent += `**风险等级:** ${suggestion.riskLevel}\n`
+      documentContent += `**处理状态:** ${suggestion.status === 'accepted' ? '采纳' : '修改采纳'}\n\n`
+    })
+  }
+  
+  documentContent += `## 审查要点\n`
+  finalReviewResult.value.highlights.forEach(highlight => {
+    documentContent += `- ${highlight}\n`
+  })
+  
+  return documentContent
+}
+
+// 生成PDF文件
+const generatePDF = (content: string, fileName: string) => {
+  // 模拟PDF生成
+  ElMessage.info(`正在生成PDF文件: ${fileName}`)
+  setTimeout(() => {
+    ElMessage.success(`PDF文件生成成功: ${fileName}`)
+  }, 1000)
+}
+
 // 确认审查
 const confirmReview = () => {
-  ElMessage.success('审查已确认')
+  if (!finalReviewResult.value) {
+    ElMessage.error('请先完成智能汇审')
+    return
+  }
+  
+  // 生成审查意见文档
+  const documentContent = generateReviewDocument()
+  if (!documentContent) {
+    ElMessage.error('生成审查意见文档失败')
+    return
+  }
+  
+  // 生成文件名
+  const planName = planForm.projectSummary ? planForm.projectSummary.substring(0, 20) : '未命名方案'
+  const today = new Date().toISOString().split('T')[0]
+  
+  // 版本管理
+  const key = `${planName}_${today}`
+  if (!reviewVersions.value[key]) {
+    reviewVersions.value[key] = 1
+  } else {
+    reviewVersions.value[key] += 1
+  }
+  const version = reviewVersions.value[key]
+  
+  const fileName = `${planName}审查意见版本V${version}_${today}.pdf`
+  
+  // 生成PDF
+  generatePDF(documentContent, fileName)
+  
+  ElMessage.success('审查已确认，审查意见文档已生成')
   // 这里可以添加确认后的处理逻辑
 }
 
@@ -2819,8 +3344,74 @@ const deletePrompt = (id: string) => {
             margin-top: 8px;
           }
           
-          .suggestion-models {
-            margin-top: 8px;
+          .suggestion-content {
+            .suggestion-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 12px;
+              
+              p {
+                flex: 1;
+                margin: 0;
+              }
+              
+              .suggestion-status {
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 12px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                
+                &:hover {
+                  transform: scale(1.05);
+                }
+                
+                &.pending {
+                  background-color: #e6f7ff;
+                  color: #1890ff;
+                  border: 1px solid #91d5ff;
+                }
+                
+                &.accepted {
+                  background-color: #f6ffed;
+                  color: #52c41a;
+                  border: 1px solid #b7eb8f;
+                }
+                
+                &.rejected {
+                  background-color: #fff2f0;
+                  color: #ff4d4f;
+                  border: 1px solid #ffccc7;
+                }
+                
+                &.modified {
+                  background-color: #fffbe6;
+                  color: #faad14;
+                  border: 1px solid #ffe58f;
+                }
+              }
+            }
+            
+            .suggestion-models {
+              margin-top: 8px;
+            }
+            
+            .modification-input {
+              margin-top: 12px;
+              padding: 12px;
+              background-color: #ffffff;
+              border-radius: 4px;
+              border: 1px solid #e4e7ed;
+              
+              p {
+                margin: 0 0 8px 0;
+              }
+              
+              .el-input {
+                width: 100%;
+              }
+            }
           }
         }
         
@@ -3103,6 +3694,53 @@ const deletePrompt = (id: string) => {
     text-align: right;
   }
 
+  /* 文件上传样式 */
+  .file-list {
+    margin-top: 16px;
+    
+    .file-item {
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      border: 1px solid #e4e7ed;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      background-color: #f9f9f9;
+      
+      .file-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+        
+        .file-name {
+          flex: 1;
+          font-weight: 500;
+          color: #303133;
+        }
+        
+        .file-size {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+      
+      .file-progress {
+        margin: 8px 0;
+        
+        .el-progress {
+          width: 100%;
+        }
+      }
+      
+      .file-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 8px;
+      }
+    }
+  }
+
   /* 审查结果 */
   .review-result {
     margin-bottom: 24px;
@@ -3267,4 +3905,103 @@ const deletePrompt = (id: string) => {
     margin-bottom: 12px;
   }
 }
+  /* 专家签名样式 */
+  .signature-container {
+    .signature-selection {
+      margin-top: 16px;
+      
+      .el-radio-group {
+        margin-bottom: 20px;
+      }
+      
+      .signature-pad {
+        canvas {
+          cursor: crosshair;
+        }
+        
+        .signature-actions {
+          margin-top: 12px;
+          display: flex;
+          gap: 12px;
+        }
+      }
+      
+      .signature-library {
+        .signature-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 16px;
+          
+          .signature-item {
+            border: 2px solid #e4e7ed;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            
+            &:hover {
+              border-color: #409EFF;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+            
+            &.active {
+              border-color: #409EFF;
+              background-color: #ecf5ff;
+              box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+            }
+            
+            .signature-image {
+              width: 100%;
+              height: 100px;
+              object-fit: contain;
+              background-color: #f9f9f9;
+              border-radius: 4px;
+              margin-bottom: 8px;
+            }
+            
+            .signature-info {
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+              
+              .signature-name {
+                font-size: 14px;
+                font-weight: 500;
+                color: #303133;
+              }
+              
+              .signature-date {
+                font-size: 12px;
+                color: #909399;
+              }
+            }
+          }
+          
+          .empty-signatures {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            background-color: #fafafa;
+            border: 2px dashed #d9d9d9;
+            border-radius: 8px;
+            
+            .empty-icon {
+              font-size: 32px;
+              color: #d9d9d9;
+              margin-bottom: 12px;
+            }
+            
+            p {
+              font-size: 14px;
+              color: #909399;
+              margin: 0 0 16px 0;
+            }
+          }
+        }
+      }
+    }
+  }
 </style>

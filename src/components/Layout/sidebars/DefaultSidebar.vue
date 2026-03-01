@@ -52,6 +52,10 @@
         <el-icon><Setting /></el-icon>
         <span>权限设置</span>
       </el-menu-item>
+      <el-menu-item index="/expert-signature">
+        <el-icon><Stamp /></el-icon>
+        <span>签名管理</span>
+      </el-menu-item>
     </el-menu>
   </div>
 </template>
@@ -59,7 +63,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { House, Document, Reading, Message, Check, Warning, Files, Warning as Alert, UserFilled, Setting } from '@element-plus/icons-vue'
+import { House, Document, Reading, Message, Check, Warning, Files, Warning as Alert, UserFilled, Setting, Stamp } from '@element-plus/icons-vue'
 
 const route = useRoute()
 

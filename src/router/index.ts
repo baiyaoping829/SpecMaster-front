@@ -115,6 +115,12 @@ const router = createRouter({
       name: 'UserRole',
       component: () => import('../views/UserRoleView.vue'),
       meta: { title: '权限设置' }
+    },
+    {
+      path: '/expert-signature',
+      name: 'ExpertSignature',
+      component: () => import('../views/ExpertSignatureView.vue'),
+      meta: { title: '专家签名管理' }
     }
   ]
 })
