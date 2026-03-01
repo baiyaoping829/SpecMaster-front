@@ -71,7 +71,7 @@ const router = createRouter({
     {
       path: '/spec-qa',
       name: 'SpecQA',
-      component: () => import('../views/SpecQAView.vue'),
+      component: () => import('../views/IntelligentQAView.vue'),
       meta: { title: '规范智答' }
     },
     {
