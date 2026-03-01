@@ -19,7 +19,7 @@
           @node-click="handleKnowledgeBaseClick"
           default-expand-all
         >
-          <template #default="{ node, data }">
+          <template #default="{ data }">
             <span class="tree-node">
               <span>{{ data.label }}</span>
               <span class="node-actions">
@@ -132,6 +132,9 @@
                 提示词库
               </el-button>
             </el-form-item>
+            <el-form-item label="网络检索">
+              <el-switch v-model="modelConfig.useWebSearch" />
+            </el-form-item>
           </div>
         </div>
 
@@ -142,10 +145,22 @@
             :key="index" 
             class="message-item" 
             :class="{ 'user-message': message.role === 'user', 'ai-message': message.role === 'assistant' }"
+            @mouseenter="hoveredMessageIndex = index"
+            @mouseleave="hoveredMessageIndex = -1"
           >
             <div class="message-header">
               <span class="message-role">{{ message.role === 'user' ? '我' : 'AI' }}</span>
-              <span class="message-time">{{ message.timestamp }}</span>
+              <div class="message-header-right">
+                <span class="message-time">{{ message.timestamp }}</span>
+                <el-button 
+                v-show="hoveredMessageIndex === index"
+                size="small" 
+                @click="copyMessageContent(message.content)" 
+                style="margin-left: 8px;"
+              >
+                <el-icon><DocumentCopy /></el-icon>
+              </el-button>
+              </div>
             </div>
             <div class="message-content">{{ message.content }}</div>
             <div v-if="message.references && message.references.length > 0" class="message-references">
@@ -163,10 +178,11 @@
         <div class="chat-input">
           <div class="prompt-selector" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: flex-start;">
             <span>提示词选择：</span>
-            <el-select v-model="modelConfig.promptId" placeholder="选择提示词" style="width: 150px; margin-left: 8px;">
-              <el-option label="默认提示词" value="default" />
-              <el-option v-for="prompt in promptTemplates" :key="prompt.id" :label="prompt.name" :value="prompt.id" />
-            </el-select>
+            <el-select v-model="modelConfig.promptId" placeholder="选择提示词" style="width: 150px;">
+                <el-option label="无提示词" value="" />
+                <el-option label="默认提示词" value="default" />
+                <el-option v-for="prompt in promptTemplates" :key="prompt.id" :label="prompt.name" :value="prompt.id" />
+              </el-select>
           </div>
           <el-input
             v-model="userInput"
@@ -323,7 +339,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowUp, ArrowDown, Edit, Delete, Plus, Close, FolderAdd, InfoFilled, Collection } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, Edit, Delete, Plus, FolderAdd, InfoFilled, Collection, DocumentCopy } from '@element-plus/icons-vue'
 import { useSpecStore } from '../store/modules/spec'
 
 // 类型定义
@@ -348,11 +364,7 @@ interface KnowledgeBase {
   parentId?: string
 }
 
-interface Spec {
-  id: string
-  name: string
-  code: string
-}
+
 
 interface PromptTemplate {
   id: string
@@ -370,7 +382,8 @@ const knowledgeBaseForm = reactive({
 const modelConfig = reactive({
   model: 'qwen',
   mode: 'qa',
-  promptId: 'default'
+  promptId: 'default',
+  useWebSearch: false
 })
 
 // 提示词模板
@@ -503,6 +516,9 @@ const recommendedQuestions = ref([
 // 展开状态管理
 const expandedKnowledgeBases = ref<string[]>([])
 
+// 鼠标悬浮消息索引
+const hoveredMessageIndex = ref(-1)
+
 // 引用
 const knowledgeBaseTreeRef = ref()
 
@@ -605,7 +621,7 @@ const deleteKnowledgeBase = (id: string) => {
   
   // 如果删除的是当前选中的知识主题，重新选择第一个知识主题
   if (selectedKnowledgeBaseId.value === id) {
-    selectedKnowledgeBaseId.value = loadedKnowledgeBases.value.length > 0 ? loadedKnowledgeBases.value[0].id : ''
+    selectedKnowledgeBaseId.value = loadedKnowledgeBases.value.length > 0 ? loadedKnowledgeBases.value[0]?.id || '' : ''
   }
   
   ElMessage.success('知识主题删除成功')
@@ -689,7 +705,7 @@ const selectKnowledgeBase = (id: string) => {
 const removeKnowledgeBase = (id: string) => {
   loadedKnowledgeBases.value = loadedKnowledgeBases.value.filter(kb => kb.id !== id)
   if (selectedKnowledgeBaseId.value === id) {
-    selectedKnowledgeBaseId.value = loadedKnowledgeBases.value.length > 0 ? loadedKnowledgeBases.value[0].id : ''
+    selectedKnowledgeBaseId.value = loadedKnowledgeBases.value.length > 0 ? loadedKnowledgeBases.value[0]?.id || '' : ''
   }
   ElMessage.success('知识主题已移除')
 }
@@ -723,11 +739,29 @@ const loadKnowledgeBase = () => {
     }
   })
   
-  selectedKnowledgeBaseId.value = loadedKnowledgeBases.value.length > 0 ? loadedKnowledgeBases.value[0].id : ''
+  selectedKnowledgeBaseId.value = loadedKnowledgeBases.value.length > 0 ? loadedKnowledgeBases.value[0]?.id || '' : ''
   ElMessage.success('知识主题加载成功')
 }
 
-const handleSend = () => {
+// 加载知识主题文档到RAG库
+const loadKnowledgeBaseToRAG = () => {
+  // 模拟加载知识主题文档到RAG库的过程
+  console.log('正在加载知识主题文档到RAG库...')
+  // 实际项目中，这里应该调用后端API来加载文档到RAG库
+  // 例如：return api.loadKnowledgeBaseToRAG(loadedKnowledgeBases.value)
+  return Promise.resolve('知识主题文档加载到RAG库成功')
+}
+
+// 执行网络检索
+const performWebSearch = (_query: string, _knowledgeBaseIds: string[]) => {
+  // 模拟网络检索过程
+  console.log('正在执行网络检索...')
+  // 实际项目中，这里应该调用后端API来执行网络检索
+  // 例如：return api.performWebSearch(query, knowledgeBaseIds)
+  return Promise.resolve('网络检索完成')
+}
+
+const handleSend = async () => {
   if (!userInput.value.trim()) return
 
   // 添加用户消息
@@ -743,17 +777,49 @@ const handleSend = () => {
   const tempInput = userInput.value
   userInput.value = ''
 
+  // 加载知识主题文档到RAG库
+  await loadKnowledgeBaseToRAG()
+
   // 模拟AI回复（基于RAG技术）
-  setTimeout(() => {
-    const aiMessage: ChatMessage = {
-      role: 'assistant',
-      content: `根据${selectedKnowledgeBase.value?.name || '知识主题'}的内容，${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...`,
-      timestamp: new Date().toLocaleString(),
-      references: [
+  setTimeout(async () => {
+    let references: Reference[] = []
+    let content = ''
+
+    // 检查是否选择了无提示词
+    const hasPrompt = modelConfig.promptId !== ''
+
+    if (modelConfig.useWebSearch) {
+      // 执行网络检索
+      await performWebSearch(tempInput, knowledgeBaseForm.knowledgeBaseIds)
+      if (hasPrompt) {
+        content = `根据${selectedKnowledgeBase.value?.name || '知识主题'}的内容和网络检索结果，${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...\n\n网络检索补充：...`
+      } else {
+        content = `${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...\n\n网络检索补充：...`
+      }
+      references = [
+        { name: '建筑设计防火规范', code: 'GB 50016-2014', section: '3.1.1' },
+        { name: '混凝土结构设计规范', code: 'GB 50010-2010', section: '4.2.1' },
+        { name: '建筑抗震设计规范', code: 'GB 50011-2010', section: '5.1.1' },
+        { name: '网络检索结果', code: 'WEB', section: '相关信息' }
+      ]
+    } else {
+      if (hasPrompt) {
+        content = `根据${selectedKnowledgeBase.value?.name || '知识主题'}的内容，${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...`
+      } else {
+        content = `${tempInput}的相关规定如下：\n\n1. 建筑设计防火规范 (GB 50016-2014) 中规定...\n2. 混凝土结构设计规范 (GB 50010-2010) 中规定...\n3. 建筑抗震设计规范 (GB 50011-2010) 中规定...`
+      }
+      references = [
         { name: '建筑设计防火规范', code: 'GB 50016-2014', section: '3.1.1' },
         { name: '混凝土结构设计规范', code: 'GB 50010-2010', section: '4.2.1' },
         { name: '建筑抗震设计规范', code: 'GB 50011-2010', section: '5.1.1' }
       ]
+    }
+
+    const aiMessage: ChatMessage = {
+      role: 'assistant',
+      content: content,
+      timestamp: new Date().toLocaleString(),
+      references: references
     }
     chatMessages.value.push(aiMessage)
   }, 1000)
@@ -773,6 +839,18 @@ const clearChat = () => {
 const useRecommendedQuestion = (question: string) => {
   userInput.value = question
   handleSend()
+}
+
+// 复制消息内容到剪贴板并填充到输入框
+const copyMessageContent = (content: string) => {
+  // 复制到剪贴板
+  navigator.clipboard.writeText(content).then(() => {
+    // 填充到输入框
+    userInput.value = content
+    ElMessage.success('消息内容已复制并填充到输入框')
+  }).catch(() => {
+    ElMessage.error('复制失败，请手动复制')
+  })
 }
 
 // 打开提示词库对话框
@@ -832,7 +910,7 @@ const submitNewPrompt = () => {
     const index = promptTemplates.value.findIndex(p => p.id === editingPromptId.value)
     if (index > -1) {
       promptTemplates.value[index] = {
-        ...promptTemplates.value[index],
+        id: editingPromptId.value,
         name: newPromptForm.name,
         content: newPromptForm.content,
         description: newPromptForm.description
@@ -975,6 +1053,7 @@ const getSpecName = (specId: string) => {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
+    background: linear-gradient(to bottom, #e6f7ff, #f0f9ff);
 
     .tree-node {
       display: flex;
@@ -1018,35 +1097,54 @@ const getSpecName = (specId: string) => {
 
     .shelf-container {
       display: flex;
-      gap: 16px;
+      gap: 20px;
       overflow-x: auto;
-      padding-bottom: 12px;
+      padding: 20px;
+      background-color: #f5f7fa;
+      border-radius: 8px;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      /* 书架底部效果 */
+      position: relative;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: linear-gradient(to bottom, #d1d9e6, #b0b8c1);
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
 
       .knowledge-book {
-        width: 300px;
-        min-height: 150px;
-        background-color: white;
-        border-radius: 8px;
+        width: 180px;
+        height: 240px;
         cursor: pointer;
         transition: all 0.3s;
         position: relative;
         display: flex;
         flex-direction: column;
-        padding: 20px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        /* 文件夹效果 */
-        border-left: 8px solid #409EFF;
-        border-bottom: 2px solid #e4e7ed;
-        border-right: 2px solid #e4e7ed;
+        /* 书本效果 */
+        background: linear-gradient(to right, #ffffff, #f8f9fa);
+        border-radius: 4px 8px 8px 4px;
+        box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);
+        /* 书脊效果 */
+        border-left: 20px solid #409EFF;
+        padding: 16px;
+        transform-style: preserve-3d;
+        transform: perspective(1000px) rotateY(-5deg);
 
         &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          transform: perspective(1000px) rotateY(-2deg) translateY(-5px);
+          box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.25);
         }
 
         &.active {
           border-left-color: #67C23A;
-          background-color: #f0f9eb;
+          background: linear-gradient(to right, #f0f9eb, #e6f7ff);
+          transform: perspective(1000px) rotateY(0deg) translateY(-5px);
         }
 
         /* 彩色方案 - 不同知识主题使用不同颜色 */
@@ -1064,20 +1162,28 @@ const getSpecName = (specId: string) => {
           display: flex;
           flex-direction: column;
           width: 100%;
+          height: 100%;
           cursor: pointer;
+          justify-content: space-between;
 
           .book-cover {
             width: 100%;
 
             .book-title {
               font-weight: 600;
-              margin-bottom: 8px;
+              margin-bottom: 12px;
               color: #303133;
-              font-size: 16px;
+              font-size: 14px;
+              line-height: 1.4;
+              height: 60px;
+              overflow: hidden;
+              display: -webkit-box;
+              -webkit-line-clamp: 3;
+              -webkit-box-orient: vertical;
             }
 
             .book-info {
-              font-size: 14px;
+              font-size: 12px;
               color: #606266;
               margin-bottom: 12px;
             }
@@ -1086,28 +1192,36 @@ const getSpecName = (specId: string) => {
 
         .book-actions {
           position: absolute;
-          bottom: 12px;
-          right: 12px;
+          bottom: 10px;
+          right: 10px;
           display: flex;
-          gap: 8px;
+          gap: 6px;
+          opacity: 0;
+          transition: opacity 0.3s;
 
           .el-button {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            background-color: rgba(255, 255, 255, 0.9);
           }
         }
 
+        &:hover .book-actions {
+          opacity: 1;
+        }
+
         .book-specs {
-          margin-top: 16px;
-          padding-top: 12px;
+          margin-top: 12px;
+          padding-top: 8px;
           border-top: 1px solid #e4e7ed;
+          font-size: 11px;
 
           .specs-title {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 500;
             color: #606266;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
           }
 
           .specs-list {
@@ -1116,39 +1230,47 @@ const getSpecName = (specId: string) => {
             margin: 0;
 
             li {
-              font-size: 12px;
+              font-size: 10px;
               color: #909399;
-              margin-bottom: 4px;
-              line-height: 1.4;
+              margin-bottom: 3px;
+              line-height: 1.3;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
             }
           }
         }
       }
 
       .add-book {
-        width: 300px;
-        height: 150px;
+        width: 180px;
+        height: 240px;
         border: 2px dashed #dcdfe6;
-        border-radius: 8px;
+        border-radius: 4px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         cursor: pointer;
         transition: all 0.3s;
+        background-color: rgba(255, 255, 255, 0.7);
 
         &:hover {
           border-color: #409EFF;
           color: #409EFF;
+          background-color: rgba(255, 255, 255, 0.9);
+          transform: translateY(-3px);
         }
 
         .add-icon {
-          font-size: 32px;
+          font-size: 36px;
           margin-bottom: 12px;
         }
 
         span {
-          font-size: 14px;
+          font-size: 13px;
+          text-align: center;
+          padding: 0 10px;
         }
       }
     }
@@ -1235,12 +1357,18 @@ const getSpecName = (specId: string) => {
       .message-header {
         display: flex;
         justify-content: space-between;
+        align-items: center;
         margin-bottom: 8px;
         font-size: 12px;
         color: #909399;
         
         .message-role {
           font-weight: 500;
+        }
+        
+        .message-header-right {
+          display: flex;
+          align-items: center;
         }
       }
 
