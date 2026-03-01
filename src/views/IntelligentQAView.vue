@@ -5,7 +5,7 @@
       <div class="sidebar-header">
         <h3>知识主题管理</h3>
         <el-button type="primary" size="small" @click="createKnowledgeBase">
-          <el-icon><folder-add /></el-icon>
+          <el-icon><FolderAdd /></el-icon>
           新建知识主题
         </el-button>
       </div>
@@ -24,10 +24,10 @@
               <span>{{ data.label }}</span>
               <span class="node-actions">
                 <el-button size="small" @click.stop="editKnowledgeBase(data)">
-                  <el-icon><edit /></el-icon>
+                  <el-icon><Edit /></el-icon>
                 </el-button>
                 <el-button size="small" type="danger" @click.stop="deleteKnowledgeBase(data.id)">
-                  <el-icon><delete /></el-icon>
+                  <el-icon><Delete /></el-icon>
                 </el-button>
               </span>
             </span>
@@ -55,13 +55,14 @@
               </div>
               <div class="book-actions">
                 <el-button size="small" @click.stop="toggleKnowledgeBaseExpand(kb.id)">
-                  <el-icon>{{ expandedKnowledgeBases.includes(kb.id) ? 'arrow-up' : 'arrow-down' }}</el-icon>
+                  <el-icon v-if="expandedKnowledgeBases.includes(kb.id)"><ArrowUp /></el-icon>
+                  <el-icon v-else><ArrowDown /></el-icon>
                 </el-button>
                 <el-button size="small" @click.stop="editKnowledgeBase(kb)">
-                  <el-icon><edit /></el-icon>
+                  <el-icon><Edit /></el-icon>
                 </el-button>
                 <el-button size="small" type="danger" @click.stop="removeKnowledgeBase(kb.id)">
-                  <el-icon><delete /></el-icon>
+                  <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
             </div>
@@ -76,7 +77,7 @@
           </div>
           
           <div class="add-book" @click="openAddKnowledgeBaseDialog">
-            <el-icon class="add-icon"><plus /></el-icon>
+            <el-icon class="add-icon"><Plus /></el-icon>
             <span>添加知识主题</span>
           </div>
         </div>
@@ -84,6 +85,10 @@
 
       <!-- 知识主题选择卡片（保留现有功能） -->
       <div class="knowledge-base-select">
+        <div class="operation-tip">
+          <el-icon><InfoFilled /></el-icon>
+          <span>操作提示：单击知识主题或规范标准进行选择，再单击取消选择</span>
+        </div>
         <el-form :inline="true" :model="knowledgeBaseForm" class="knowledge-base-form">
           <el-form-item label="选择问答主题">
             <el-select v-model="knowledgeBaseForm.knowledgeBaseIds" multiple placeholder="请选择问答主题" clearable style="width: 200px;">
@@ -121,6 +126,12 @@
                 <el-option label="翻译模式" value="translate" />
               </el-select>
             </el-form-item>
+            <el-form-item>
+              <el-button @click="openPromptLibraryDialog">
+                <el-icon><Collection /></el-icon>
+                提示词库
+              </el-button>
+            </el-form-item>
           </div>
         </div>
 
@@ -150,12 +161,20 @@
 
         <!-- 输入区域 -->
         <div class="chat-input">
+          <div class="prompt-selector" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: flex-start;">
+            <span>提示词选择：</span>
+            <el-select v-model="modelConfig.promptId" placeholder="选择提示词" style="width: 150px; margin-left: 8px;">
+              <el-option label="默认提示词" value="default" />
+              <el-option v-for="prompt in promptTemplates" :key="prompt.id" :label="prompt.name" :value="prompt.id" />
+            </el-select>
+          </div>
           <el-input
             v-model="userInput"
             type="textarea"
             :rows="3"
             placeholder="请输入您的问题..."
             @keyup.enter.exact="handleSend"
+            style="min-height: 80px;"
           />
           <div class="input-actions">
             <el-button @click="clearChat">清空对话</el-button>
@@ -231,6 +250,72 @@
           </span>
         </template>
       </el-dialog>
+
+      <!-- 提示词库对话框 -->
+      <el-dialog
+        v-model="promptLibraryDialogVisible"
+        title="提示词库"
+        width="800px"
+      >
+        <!-- 提示词列表 -->
+        <div class="prompt-list">
+          <h4>预定义提示词模板</h4>
+          <el-table :data="promptTemplates" style="width: 100%; margin-bottom: 20px;">
+            <el-table-column prop="name" label="名称" width="120" />
+            <el-table-column prop="description" label="描述" />
+            <el-table-column label="操作" width="120">
+              <template #default="{ row }">
+                <el-button 
+                  size="small" 
+                  @click="editPrompt(row)"
+                >
+                  <el-icon><Edit /></el-icon>
+                </el-button>
+                <el-button 
+                  size="small" 
+                  type="danger" 
+                  @click="deletePrompt(row.id)"
+                  :disabled="row.id === 'default'"
+                >
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        
+        <!-- 添加新提示词 -->
+        <div class="add-prompt">
+          <h4>{{ isEditing ? '编辑提示词' : '添加新提示词' }}</h4>
+          <el-form :model="newPromptForm" label-width="100px">
+            <el-form-item label="提示词名称" required>
+              <el-input v-model="newPromptForm.name" placeholder="请输入提示词名称" />
+            </el-form-item>
+            <el-form-item label="描述">
+              <el-input v-model="newPromptForm.description" placeholder="请输入提示词描述" />
+            </el-form-item>
+            <el-form-item label="提示词内容" required>
+              <el-input 
+                type="textarea" 
+                v-model="newPromptForm.content" 
+                placeholder="请输入提示词内容" 
+                rows="4" 
+              />
+              <div class="form-actions" style="margin-top: 10px; text-align: right;">
+                <el-button @click="addNewPrompt">增加提示词</el-button>
+                <el-button v-if="isEditing" type="primary" @click="submitNewPrompt">保存修改</el-button>
+              </div>
+            </el-form-item>
+          </el-form>
+        </div>
+        
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="promptLibraryDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="saveAndExit">保存退出</el-button>
+          </span>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -238,6 +323,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { ArrowUp, ArrowDown, Edit, Delete, Plus, Close, FolderAdd, InfoFilled, Collection } from '@element-plus/icons-vue'
 import { useSpecStore } from '../store/modules/spec'
 
 // 类型定义
@@ -268,6 +354,13 @@ interface Spec {
   code: string
 }
 
+interface PromptTemplate {
+  id: string
+  name: string
+  content: string
+  description: string
+}
+
 // 响应式数据
 const knowledgeBaseForm = reactive({
   knowledgeBaseIds: [] as string[],
@@ -276,7 +369,46 @@ const knowledgeBaseForm = reactive({
 
 const modelConfig = reactive({
   model: 'qwen',
-  mode: 'qa'
+  mode: 'qa',
+  promptId: 'default'
+})
+
+// 提示词模板
+const promptTemplates = ref<PromptTemplate[]>([
+  {
+    id: 'default',
+    name: '默认提示词',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，回答用户的问题。回答要准确、清晰、专业，引用相关规范的具体条款。',
+    description: '通用的规范问答提示词'
+  },
+  {
+    id: 'detailed',
+    name: '详细解释',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，详细回答用户的问题。不仅要给出答案，还要解释相关规范的背景、原理和应用场景，帮助用户深入理解。',
+    description: '提供详细解释的提示词'
+  },
+  {
+    id: 'summary',
+    name: '总结概括',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，对用户的问题进行总结概括。回答要简洁明了，重点突出，抓住核心要点。',
+    description: '用于总结概括的提示词'
+  },
+  {
+    id: 'comparison',
+    name: '对比分析',
+    content: '你是一个专业的规范智答助手，请根据提供的规范标准内容，对用户提到的不同规范或条款进行对比分析。指出它们的异同点，帮助用户理解它们之间的关系。',
+    description: '用于对比分析的提示词'
+  }
+])
+
+// 提示词库对话框
+const promptLibraryDialogVisible = ref(false)
+const isEditing = ref(false)
+const editingPromptId = ref('')
+const newPromptForm = reactive({
+  name: '',
+  content: '',
+  description: ''
 })
 
 const specStore = useSpecStore()
@@ -494,6 +626,43 @@ const handleKnowledgeBaseClick = (data: any) => {
       // 如果已加载，直接选中
       selectedKnowledgeBaseId.value = kb.id
     }
+    
+    // 在右侧栏选择问答主题中切换对应的主题（支持多选和取消选择）
+    const index = knowledgeBaseForm.knowledgeBaseIds.indexOf(kb.id)
+    if (index > -1) {
+      // 如果已选择，则取消选择
+      knowledgeBaseForm.knowledgeBaseIds.splice(index, 1)
+    } else {
+      // 如果未选择，则添加选择
+      knowledgeBaseForm.knowledgeBaseIds.push(kb.id)
+    }
+  } else if (data.id.startsWith('spec-')) {
+    // 点击的是规范标准记录
+    const specId = data.id.replace('spec-', '')
+    // 找到包含该规范的知识主题
+    const containingKbs = knowledgeBases.value.filter(kb => kb.specs.includes(specId))
+    if (containingKbs.length > 0) {
+      // 切换对应的知识主题（支持多选和取消选择）
+      containingKbs.forEach(kb => {
+        const index = knowledgeBaseForm.knowledgeBaseIds.indexOf(kb.id)
+        if (index > -1) {
+          // 如果已选择，则取消选择
+          knowledgeBaseForm.knowledgeBaseIds.splice(index, 1)
+        } else {
+          // 如果未选择，则添加选择
+          knowledgeBaseForm.knowledgeBaseIds.push(kb.id)
+        }
+      })
+      // 切换对应的规范（支持多选和取消选择）
+      const specIndex = knowledgeBaseForm.specIds.indexOf(specId)
+      if (specIndex > -1) {
+        // 如果已选择，则取消选择
+        knowledgeBaseForm.specIds.splice(specIndex, 1)
+      } else {
+        // 如果未选择，则添加选择
+        knowledgeBaseForm.specIds.push(specId)
+      }
+    }
   }
 }
 
@@ -504,6 +673,16 @@ const selectKnowledgeBase = (id: string) => {
   // 同时在左侧目录中选中对应的节点
   if (knowledgeBaseTreeRef.value) {
     knowledgeBaseTreeRef.value.setCurrentKey(id)
+  }
+  
+  // 在右侧栏选择问答主题中切换对应的主题（支持多选和取消选择）
+  const index = knowledgeBaseForm.knowledgeBaseIds.indexOf(id)
+  if (index > -1) {
+    // 如果已选择，则取消选择
+    knowledgeBaseForm.knowledgeBaseIds.splice(index, 1)
+  } else {
+    // 如果未选择，则添加选择
+    knowledgeBaseForm.knowledgeBaseIds.push(id)
   }
 }
 
@@ -594,6 +773,120 @@ const clearChat = () => {
 const useRecommendedQuestion = (question: string) => {
   userInput.value = question
   handleSend()
+}
+
+// 打开提示词库对话框
+const openPromptLibraryDialog = () => {
+  // 重置编辑状态
+  isEditing.value = false
+  editingPromptId.value = ''
+  // 重置表单
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+  promptLibraryDialogVisible.value = true
+}
+
+// 编辑提示词
+const editPrompt = (prompt: PromptTemplate) => {
+  isEditing.value = true
+  editingPromptId.value = prompt.id
+  newPromptForm.name = prompt.name
+  newPromptForm.content = prompt.content
+  newPromptForm.description = prompt.description
+}
+
+// 增加提示词
+const addNewPrompt = () => {
+  if (!newPromptForm.name || !newPromptForm.content) {
+    ElMessage.error('请填写提示词名称和内容')
+    return
+  }
+  
+  // 添加新提示词
+  const newPrompt: PromptTemplate = {
+    id: `prompt-${Date.now()}`,
+    name: newPromptForm.name,
+    content: newPromptForm.content,
+    description: newPromptForm.description
+  }
+  
+  promptTemplates.value.push(newPrompt)
+  ElMessage.success('提示词添加成功')
+  
+  // 重置表单，但保持编辑状态不变
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+}
+
+// 提交新提示词或编辑提示词
+const submitNewPrompt = () => {
+  if (!newPromptForm.name || !newPromptForm.content) {
+    ElMessage.error('请填写提示词名称和内容')
+    return
+  }
+  
+  if (isEditing.value) {
+    // 编辑现有提示词
+    const index = promptTemplates.value.findIndex(p => p.id === editingPromptId.value)
+    if (index > -1) {
+      promptTemplates.value[index] = {
+        ...promptTemplates.value[index],
+        name: newPromptForm.name,
+        content: newPromptForm.content,
+        description: newPromptForm.description
+      }
+      ElMessage.success('提示词编辑成功')
+    }
+  } else {
+    // 添加新提示词
+    const newPrompt: PromptTemplate = {
+      id: `prompt-${Date.now()}`,
+      name: newPromptForm.name,
+      content: newPromptForm.content,
+      description: newPromptForm.description
+    }
+    
+    promptTemplates.value.push(newPrompt)
+    ElMessage.success('提示词添加成功')
+  }
+  
+  // 重置表单和编辑状态
+  isEditing.value = false
+  editingPromptId.value = ''
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+}
+
+// 保存退出
+const saveAndExit = () => {
+  promptLibraryDialogVisible.value = false
+  // 重置编辑状态
+  isEditing.value = false
+  editingPromptId.value = ''
+  // 重置表单
+  newPromptForm.name = ''
+  newPromptForm.content = ''
+  newPromptForm.description = ''
+}
+
+// 删除提示词
+const deletePrompt = (id: string) => {
+  if (id === 'default') {
+    ElMessage.error('默认提示词不能删除')
+    return
+  }
+  
+  promptTemplates.value = promptTemplates.value.filter(prompt => prompt.id !== id)
+  
+  // 如果当前选择的提示词被删除，切换到默认提示词
+  if (modelConfig.promptId === id) {
+    modelConfig.promptId = 'default'
+  }
+  
+  ElMessage.success('提示词删除成功')
 }
 
 // 处理编辑知识主题提交
@@ -706,9 +999,11 @@ const getSpecName = (specId: string) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
   padding: 20px;
   background-color: #f0f2f5;
+  min-height: 100vh;
+  height: auto;
 
   /* 知识主题书架 */
   .knowledge-shelf {
@@ -729,67 +1024,87 @@ const getSpecName = (specId: string) => {
 
       .knowledge-book {
         width: 300px;
-        min-height: 120px;
+        min-height: 150px;
         background-color: white;
         border-radius: 8px;
-        border: 2px solid #e4e7ed;
         cursor: pointer;
         transition: all 0.3s;
         position: relative;
         display: flex;
         flex-direction: column;
-        padding: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        /* 文件夹效果 */
+        border-left: 8px solid #409EFF;
+        border-bottom: 2px solid #e4e7ed;
+        border-right: 2px solid #e4e7ed;
 
         &:hover {
-          border-color: #409EFF;
-          box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         &.active {
-          border-color: #409EFF;
-          background-color: #ecf5ff;
+          border-left-color: #67C23A;
+          background-color: #f0f9eb;
+        }
+
+        /* 彩色方案 - 不同知识主题使用不同颜色 */
+        &:nth-child(3n+1) {
+          border-left-color: #409EFF;
+        }
+        &:nth-child(3n+2) {
+          border-left-color: #67C23A;
+        }
+        &:nth-child(3n+3) {
+          border-left-color: #E6A23C;
         }
 
         .book-header {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
+          flex-direction: column;
           width: 100%;
           cursor: pointer;
 
           .book-cover {
-            flex: 1;
-            text-align: left;
+            width: 100%;
 
             .book-title {
-              font-weight: 500;
-              margin-bottom: 4px;
+              font-weight: 600;
+              margin-bottom: 8px;
               color: #303133;
+              font-size: 16px;
             }
 
             .book-info {
-              font-size: 12px;
-              color: #909399;
-            }
-          }
-
-          .book-actions {
-            display: flex;
-            gap: 4px;
-
-            .el-button {
-              padding: 4px 8px;
+              font-size: 14px;
+              color: #606266;
+              margin-bottom: 12px;
             }
           }
         }
 
+        .book-actions {
+          position: absolute;
+          bottom: 12px;
+          right: 12px;
+          display: flex;
+          gap: 8px;
+
+          .el-button {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+          }
+        }
+
         .book-specs {
-          margin-top: 12px;
+          margin-top: 16px;
           padding-top: 12px;
           border-top: 1px solid #e4e7ed;
 
           .specs-title {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 500;
             color: #606266;
             margin-bottom: 8px;
@@ -812,7 +1127,7 @@ const getSpecName = (specId: string) => {
 
       .add-book {
         width: 300px;
-        height: 120px;
+        height: 150px;
         border: 2px dashed #dcdfe6;
         border-radius: 8px;
         display: flex;
@@ -828,8 +1143,8 @@ const getSpecName = (specId: string) => {
         }
 
         .add-icon {
-          font-size: 24px;
-          margin-bottom: 8px;
+          font-size: 32px;
+          margin-bottom: 12px;
         }
 
         span {
@@ -846,6 +1161,22 @@ const getSpecName = (specId: string) => {
     padding: 16px;
     border-radius: 8px;
     border: 1px solid #e4e7ed;
+
+    .operation-tip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background-color: #ecf5ff;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #409EFF;
+
+      el-icon {
+        font-size: 16px;
+      }
+    }
   }
 
   .knowledge-base-form {
@@ -862,6 +1193,8 @@ const getSpecName = (specId: string) => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 500px;
+    height: auto;
 
     /* 模型和模式选择 */
     .qa-header {
@@ -951,6 +1284,8 @@ const getSpecName = (specId: string) => {
     .chat-input {
       border-top: 1px solid #e4e7ed;
       padding: 16px;
+      min-height: 150px;
+      box-sizing: border-box;
 
       .input-actions {
         display: flex;
@@ -994,6 +1329,11 @@ const getSpecName = (specId: string) => {
   }
 }
 
+/* 提示词库样式 */
+.add-prompt {
+  padding-left: 30px;
+}
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .sidebar {
@@ -1033,6 +1373,10 @@ const getSpecName = (specId: string) => {
 
   .message-item {
     max-width: 90%;
+  }
+
+  .add-prompt {
+    padding-left: 20px;
   }
 }
 </style>
