@@ -19,6 +19,7 @@ const tableDdl = [
     compilation_unit varchar(256),
     keywords varchar(512),
     description text,
+    uploader_user_id varchar(64),
     version integer not null default 0,
     created_at varchar(32) not null,
     updated_at varchar(32) not null
@@ -77,6 +78,7 @@ export const runMigrations = async (db, dialect = 'sqlite') => {
           sql`alter table users modify created_at varchar(32) not null`,
           sql`alter table specs modify created_at varchar(32) not null`,
           sql`alter table specs modify updated_at varchar(32) not null`,
+          sql`alter table specs add column uploader_user_id varchar(64) null`,
           sql`alter table file_objects modify created_at varchar(32) not null`,
           sql`alter table file_objects modify deleted_at varchar(32) null`,
           sql`alter table outbox_events modify created_at varchar(32) not null`
@@ -86,11 +88,12 @@ export const runMigrations = async (db, dialect = 'sqlite') => {
             sql`alter table users alter column created_at type varchar(32)`,
             sql`alter table specs alter column created_at type varchar(32)`,
             sql`alter table specs alter column updated_at type varchar(32)`,
+            sql`alter table specs add column if not exists uploader_user_id varchar(64)`,
             sql`alter table file_objects alter column created_at type varchar(32)`,
             sql`alter table file_objects alter column deleted_at type varchar(32)`,
             sql`alter table outbox_events alter column created_at type varchar(32)`
           ]
-        : []
+        : [sql`alter table specs add column uploader_user_id varchar(64)`]
 
   for (const stmt of alterDdl) {
     try {

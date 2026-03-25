@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { writeFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import { createWriteStream } from 'node:fs'
 
 const waitFor = async (url: string, timeoutMs: number) => {
   const start = Date.now()
@@ -19,6 +20,7 @@ export default async () => {
   const stateDir = join(process.cwd(), '.e2e')
   await mkdir(stateDir, { recursive: true })
   const pidFile = join(stateDir, 'server.pid')
+  const logFile = join(stateDir, 'server.log')
 
   const env = {
     ...process.env,
@@ -29,12 +31,17 @@ export default async () => {
   }
 
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-  await new Promise<void>((resolve, reject) => {
-    const build = spawn(npm, ['run', 'build'], { env, stdio: 'inherit', shell: true })
-    build.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`build failed: ${code}`))))
-  })
+  if (process.env.E2E_SKIP_BUILD !== '1') {
+    await new Promise<void>((resolve, reject) => {
+      const build = spawn(npm, ['run', 'build'], { env, stdio: 'inherit', shell: true })
+      build.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`build failed: ${code}`))))
+    })
+  }
 
-  const proc = spawn(process.execPath, ['server/index.mjs'], { env, stdio: 'inherit' })
+  const log = createWriteStream(logFile, { flags: 'a' })
+  const proc = spawn(process.execPath, ['server/index.mjs'], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+  proc.stdout.pipe(log)
+  proc.stderr.pipe(log)
   await writeFile(pidFile, String(proc.pid), 'utf8')
   await waitFor(`http://127.0.0.1:${env.PORT}/api/health`, 15_000)
 }

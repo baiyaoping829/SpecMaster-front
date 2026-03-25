@@ -61,16 +61,28 @@
 
     <!-- 列表视图 -->
     <el-card v-if="viewMode === 'list'" class="spec-list">
-      <div class="batch-actions" style="margin-bottom: 16px;">
-        <el-button type="primary" @click="handleBatchAddToTree" :disabled="selectedSpecs.length === 0">
-          <el-icon><folder-add /></el-icon>
-          批量添加到目录树
-        </el-button>
-        <el-button type="primary" @click="handleBatchDownload" :disabled="selectedSpecs.length === 0">
-          <el-icon><download /></el-icon>
-          批量下载
-        </el-button>
-        <span style="margin-left: 16px;">已选择 {{ selectedSpecs.length }} 项</span>
+      <div class="batch-actions">
+        <div class="batch-left">
+          <el-button type="primary" @click="handleBatchAddToTree" :disabled="selectedCount === 0">
+            <el-icon><folder-add /></el-icon>
+            <span class="btn-text">批量添加到目录树</span>
+          </el-button>
+          <el-button type="primary" @click="handleBatchDownload" :disabled="selectedCount === 0">
+            <el-icon><download /></el-icon>
+            <span class="btn-text">批量下载</span>
+          </el-button>
+          <span class="selected-hint">已选择 {{ selectedCount }} 项</span>
+        </div>
+        <div class="batch-right">
+          <el-button type="primary" plain :loading="viewLatestLoading" @click="handleViewSpecifications">
+            <el-icon><ViewIcon /></el-icon>
+            <span class="btn-text">查看规范</span>
+          </el-button>
+          <el-button type="danger" plain :loading="deleteLoading" :disabled="selectedCount === 0" @click="handleDeleteSpecifications">
+            <el-icon><DeleteIcon /></el-icon>
+            <span class="btn-text">删除规范</span>
+          </el-button>
+        </div>
       </div>
       <el-table 
         :data="filteredSpecList" 
@@ -81,6 +93,9 @@
         :header-cell-style="{ backgroundColor: '#f5f7fa' }"
         :row-class-name="rowClassName"
         :height="tableHeight"
+        ref="tableRef"
+        :row-key="(row:any) => String(row.id)"
+        :reserve-selection="true"
       >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
@@ -195,16 +210,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useSpecStore } from '../store/modules/spec'
-import { FolderAdd, Upload, Download } from '@element-plus/icons-vue'
+import { FolderAdd, Upload, Download, View as ViewIcon, Delete as DeleteIcon } from '@element-plus/icons-vue'
 import { specApi } from '../api/spec'
+import { specificationsApi } from '../api/specifications'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import { track } from '../utils/telemetry'
+import { buildDeleteConfirmMessage, diffLatestItems, parseLatestCache } from '../features/specificationsActions'
 
 const specStore = useSpecStore()
 
 // 响应式数据
 const viewMode = ref<'list' | 'card'>('list')
 const loading = ref(false)
+const viewLatestLoading = ref(false)
+const deleteLoading = ref(false)
+const tableRef = ref<any>(null)
 const searchForm = reactive({
   name: '',
   code: '',
@@ -213,8 +235,26 @@ const searchForm = reactive({
   status: '',
   keywords: ''
 })
-const selectedSpecs = ref<any[]>([])
+const selectedIdSet = ref<Set<string>>(new Set())
+const selectedSpecCache = ref<Map<string, any>>(new Map())
+const specList = ref<any[]>([])
 const tableHeight = ref('500px')
+
+const selectedCount = computed(() => selectedIdSet.value.size)
+const selectedSpecs = computed(() => {
+  const items: any[] = []
+  for (const id of selectedIdSet.value) {
+    const item = selectedSpecCache.value.get(String(id))
+    if (item) items.push(item)
+  }
+  return items
+})
+
+const clearSelectionState = () => {
+  selectedIdSet.value = new Set()
+  tableRef.value?.clearSelection?.()
+}
+// 计算表格高度
 
 // 计算表格高度
 const calculateTableHeight = () => {
@@ -226,280 +266,20 @@ const calculateTableHeight = () => {
   tableHeight.value = `${Math.max(minHeight, calculatedHeight)}px`
 }
 
-// 初始化时计算表格高度
 calculateTableHeight()
-
-// 监听窗口大小变化
 window.addEventListener('resize', calculateTableHeight)
+onUnmounted(() => {
+  window.removeEventListener('resize', calculateTableHeight)
+})
 // 计算属性：根据当前分类和搜索条件过滤规范标准
 const filteredSpecList = computed(() => {
-  let result = specList.value
-  
-  // 根据搜索条件过滤
-  if (searchForm.name) {
-    const name = searchForm.name.toLowerCase()
-    result = result.filter(spec => spec.name.toLowerCase().includes(name))
-  }
-  
-  if (searchForm.code) {
-    const code = searchForm.code.toLowerCase()
-    result = result.filter(spec => spec.code.toLowerCase().includes(code))
-  }
-  
-  if (searchForm.type) {
-    result = result.filter(spec => spec.type === searchForm.type)
-  }
-  
-  if (searchForm.level) {
-    result = result.filter(spec => spec.level === parseInt(searchForm.level))
-  }
-  
-  if (searchForm.status) {
-    result = result.filter(spec => spec.status === parseInt(searchForm.status))
-  }
-  
-  if (searchForm.keywords) {
-    const keywords = searchForm.keywords.toLowerCase()
-    result = result.filter(spec => spec.keywords && spec.keywords.toLowerCase().includes(keywords))
-  }
-  
-  // 根据当前分类过滤
-  const currentCategory = specStore.currentCategory
-  if (currentCategory && !currentCategory.isSpec) {
-    // 这里可以根据分类ID或其他属性过滤规范标准
-    // 暂时返回所有规范标准
-  }
-  
-  return result
+  return specList.value
 })
 
-const specList = ref([
-  {
-    id: 1,
-    name: '建筑设计防火规范',
-    code: 'GB 50016-2014',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2015-05-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于新建、扩建和改建的建筑设计防火。',
-    keywords: '建筑,防火,设计'
-  },
-  {
-    id: 2,
-    name: '混凝土结构设计规范',
-    code: 'GB 50010-2010',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2011-07-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于房屋和一般构筑物的混凝土结构设计。'
-  },
-  {
-    id: 3,
-    name: '建筑抗震设计规范',
-    code: 'GB 50011-2010',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2010-12-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于抗震设防烈度为6度至9度地区的建筑抗震设计。'
-  },
-  {
-    id: 4,
-    name: '建筑地基基础设计规范',
-    code: 'GB 50007-2011',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2012-08-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于工业与民用建筑地基基础的设计。'
-  },
-  {
-    id: 5,
-    name: '砌体结构设计规范',
-    code: 'GB 50003-2011',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2012-08-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于建筑工程的砌体结构和底部框架-抗震墙砌体房屋的设计。'
-  },
-  {
-    id: 6,
-    name: '钢结构设计标准',
-    code: 'GB 50017-2017',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2018-07-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本标准适用于工业与民用建筑和一般构筑物的钢结构设计。'
-  },
-  {
-    id: 7,
-    name: '建筑结构荷载规范',
-    code: 'GB 50009-2012',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2012-10-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于工业与民用建筑和一般构筑物的结构设计。'
-  },
-  {
-    id: 8,
-    name: '建筑抗震设防分类标准',
-    code: 'GB 50223-2008',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2008-07-30',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本标准适用于新建、扩建、改建建筑工程的抗震设防分类。'
-  },
-  {
-    id: 9,
-    name: '建筑节能工程施工质量验收规范',
-    code: 'GB 50411-2019',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2020-01-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于建筑节能工程施工质量的验收。'
-  },
-  {
-    id: 10,
-    name: '建筑装饰装修工程质量验收标准',
-    code: 'GB 50210-2018',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2018-12-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本标准适用于建筑装饰装修工程的质量验收。'
-  },
-  {
-    id: 11,
-    name: '建筑工程施工质量验收统一标准',
-    code: 'GB 50300-2013',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2014-06-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本标准适用于建筑工程施工质量的验收。'
-  },
-  {
-    id: 12,
-    name: '建筑电气工程施工质量验收规范',
-    code: 'GB 50303-2015',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2016-08-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于建筑电气工程的施工质量验收。'
-  },
-  {
-    id: 13,
-    name: '建筑给水排水及采暖工程施工质量验收规范',
-    code: 'GB 50242-2002',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2002-04-01',
-    compilationUnit: '中华人民共和国建设部',
-    description: '本规范适用于建筑给水排水及采暖工程的施工质量验收。'
-  },
-  {
-    id: 14,
-    name: '通风与空调工程施工质量验收规范',
-    code: 'GB 50243-2016',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2017-07-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于通风与空调工程的施工质量验收。'
-  },
-  {
-    id: 15,
-    name: '智能建筑工程质量验收规范',
-    code: 'GB 50339-2013',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2014-02-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于智能建筑工程的质量验收。'
-  },
-  {
-    id: 16,
-    name: '建筑边坡工程技术规范',
-    code: 'GB 50330-2013',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2014-06-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于建筑边坡工程的设计、施工和检测。'
-  },
-  {
-    id: 17,
-    name: '城市道路工程设计规范',
-    code: 'CJJ 37-2012',
-    type: 'CJJ',
-    level: 2,
-    status: 1,
-    implementationDate: '2012-10-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于城市道路工程的设计。'
-  },
-  {
-    id: 18,
-    name: '城市桥梁设计规范',
-    code: 'CJJ 11-2011',
-    type: 'CJJ',
-    level: 2,
-    status: 1,
-    implementationDate: '2012-04-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于城市桥梁的设计。'
-  },
-  {
-    id: 19,
-    name: '城镇道路路面设计规范',
-    code: 'CJJ 169-2012',
-    type: 'CJJ',
-    level: 2,
-    status: 1,
-    implementationDate: '2012-10-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于城镇道路路面的设计。'
-  },
-  {
-    id: 20,
-    name: '城市排水工程规划规范',
-    code: 'GB 50318-2017',
-    type: 'GB',
-    level: 1,
-    status: 1,
-    implementationDate: '2017-12-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于城市排水工程的规划。'
-  }
-])
 const pagination = reactive({
   page: 1,
   pageSize: 10,
-  total: 20
+  total: 0
 })
 
 // 方法
@@ -511,16 +291,25 @@ const loadSpecs = async () => {
   loading.value = true
   try {
     const res = await specApi.getSpecList({
+      page: pagination.page,
+      pageSize: pagination.pageSize,
       name: searchForm.name || undefined,
       code: searchForm.code || undefined,
-      type: searchForm.type || undefined
+      type: searchForm.type || undefined,
+      level: searchForm.level || undefined,
+      status: searchForm.status || undefined,
+      keywords: searchForm.keywords || undefined
     })
     const items = Array.isArray(res.data?.items) ? res.data.items : []
-    specList.value = items.map((s: any) => ({
+    const mapped = items.map((s: any) => ({
       ...s,
       implementationDate: s.implementation_date || s.implementationDate,
       compilationUnit: s.compilation_unit || s.compilationUnit
     }))
+    specList.value = mapped
+    for (const row of mapped) {
+      selectedSpecCache.value.set(String(row.id), row)
+    }
     pagination.total = Number(res.data?.total || 0)
   } finally {
     loading.value = false
@@ -528,6 +317,8 @@ const loadSpecs = async () => {
 }
 
 const handleSearch = () => {
+  pagination.page = 1
+  clearSelectionState()
   loadSpecs()
 }
 
@@ -540,7 +331,128 @@ const resetForm = () => {
     status: '',
     keywords: ''
   })
+  pagination.page = 1
+  clearSelectionState()
   loadSpecs()
+}
+
+const handleViewSpecifications = async () => {
+  if (viewLatestLoading.value) return
+  track({ name: 'spec.view.click' })
+  viewLatestLoading.value = true
+  const run = async () => {
+    const res = await specificationsApi.latest(3000, true)
+    const items = Array.isArray(res.data?.items) ? res.data.items : []
+    const cacheKey = 'spec_latest_cache'
+    const prev = parseLatestCache(localStorage.getItem(cacheKey))
+    const { newCount, next } = diffLatestItems(
+      prev,
+      items.map((it: any) => ({
+        id: String(it.id),
+        version: Number(it.version || 0),
+        uploadTime: String(it.uploadTime || '')
+      }))
+    )
+    localStorage.setItem(cacheKey, JSON.stringify(next))
+    if (newCount > 0) {
+      ElMessage.success(`发现 ${newCount} 条新规范`)
+      track({ name: 'spec.view.success', newCount })
+      await loadSpecs()
+    } else {
+      ElMessage.info('未发现新规范')
+      track({ name: 'spec.view.success', newCount: 0 })
+    }
+  }
+
+  try {
+    await run()
+  } catch (e: any) {
+    track({ name: 'spec.view.failure', message: e?.message || 'error' })
+    ElMessage.error('操作失败，请稍后重试')
+    try {
+      await ElMessageBox.confirm('网络异常或超时（3s）导致失败，是否重试？', '提示', {
+        confirmButtonText: '重试',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+      track({ name: 'spec.view.retry' })
+      try {
+        await run()
+      } catch (e2: any) {
+        track({ name: 'spec.view.failure', message: e2?.message || 'error', stage: 'retry' })
+        ElMessage.error('操作失败，请稍后重试')
+      }
+    } catch {
+    }
+  } finally {
+    viewLatestLoading.value = false
+  }
+}
+
+const handleDeleteSpecifications = async () => {
+  if (deleteLoading.value) return
+  const ids = Array.from(selectedIdSet.value)
+  if (!ids.length) return
+  track({ name: 'spec.delete.click', count: ids.length })
+
+  const names = selectedSpecs.value.map((s: any) => String(s?.name || s?.id)).filter(Boolean)
+  const message = buildDeleteConfirmMessage(names)
+
+  try {
+    await ElMessageBox.confirm(message, '确认删除', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+
+  const run = async () => {
+    const res = await specificationsApi.delete(ids, 3000, true)
+    const successIds = Array.isArray(res.data?.successIds) ? res.data.successIds : []
+    const failed = Array.isArray(res.data?.failed) ? res.data.failed : []
+    const successSet = new Set(successIds.map((x: any) => String(x)))
+    if (successSet.size) {
+      specList.value = (specList.value || []).filter((row: any) => !successSet.has(String(row.id)))
+      pagination.total = Math.max(0, Number(pagination.total || 0) - successSet.size)
+    }
+    ElNotification({
+      title: '删除结果',
+      message: `成功删除 ${successIds.length} 条，失败 ${failed.length} 条`,
+      type: failed.length ? 'warning' : 'success',
+      position: 'bottom-right',
+      duration: 3000
+    })
+    track({ name: 'spec.delete.success', success: successIds.length, failed: failed.length })
+    clearSelectionState()
+    await loadSpecs()
+  }
+
+  deleteLoading.value = true
+  try {
+    await run()
+  } catch (e: any) {
+    track({ name: 'spec.delete.failure', message: e?.message || 'error' })
+    ElMessage.error('操作失败，请稍后重试')
+    try {
+      await ElMessageBox.confirm('网络异常或超时（3s）导致失败，是否重试？', '提示', {
+        confirmButtonText: '重试',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+      track({ name: 'spec.delete.retry' })
+      try {
+        await run()
+      } catch (e2: any) {
+        track({ name: 'spec.delete.failure', message: e2?.message || 'error', stage: 'retry' })
+        ElMessage.error('操作失败，请稍后重试')
+      }
+    } catch {
+    }
+  } finally {
+    deleteLoading.value = false
+  }
 }
 
 const handleUpload = () => {
@@ -556,7 +468,16 @@ const handleEdit = (spec: any) => {
 }
 
 const handleSelectionChange = (selection: any[]) => {
-  selectedSpecs.value = selection
+  const currentPageIds = new Set((filteredSpecList.value || []).map((s: any) => String(s.id)))
+  const selectedIds = new Set(selection.map((s: any) => String(s.id)))
+  const next = new Set(selectedIdSet.value)
+  for (const id of currentPageIds) {
+    if (!selectedIds.has(id)) next.delete(id)
+  }
+  for (const id of selectedIds) {
+    next.add(id)
+  }
+  selectedIdSet.value = next
 }
 
 const handleAddToTree = (spec: any) => {
@@ -564,9 +485,9 @@ const handleAddToTree = (spec: any) => {
   console.log('添加规范到目录树:', spec)
   
   // 检查是否有多个规范被选择
-  if (selectedSpecs.value.length > 1) {
+  if (selectedCount.value > 1) {
     // 如果有多个规范被选择，传递所有被选择的规范ID
-    const specIds = selectedSpecs.value.map((s: any) => s.id).join(',')
+    const specIds = Array.from(selectedIdSet.value).join(',')
     window.open(`/spec-data/add-to-tree?specIds=${specIds}`, '_blank', 'width=900,height=700')
   } else {
     // 如果只有一个规范被选择，传递当前规范的ID
@@ -576,18 +497,16 @@ const handleAddToTree = (spec: any) => {
 
 const handleBatchAddToTree = () => {
   // 批量添加规范到目录树，在新窗口中打开目录树选择页面
-  console.log('批量添加规范到目录树:', selectedSpecs.value)
   // 获取选中的规范ID列表
-  const specIds = selectedSpecs.value.map((spec: any) => spec.id).join(',')
+  const specIds = Array.from(selectedIdSet.value).join(',')
   // 在新窗口中打开目录树选择页面
   window.open(`/spec-data/add-to-tree?specIds=${specIds}`, '_blank', 'width=900,height=700')
 }
 
 const handleBatchDownload = () => {
   // 批量下载规范，在新窗口中打开下载页面
-  console.log('批量下载规范:', selectedSpecs.value)
   // 获取选中的规范ID列表
-  const specIds = selectedSpecs.value.map((spec: any) => spec.id).join(',')
+  const specIds = Array.from(selectedIdSet.value).join(',')
   // 模拟在新窗口中打开下载页面
   window.open(`/spec-data/download?specIds=${specIds}`, '_blank', 'width=800,height=600')
 }
@@ -627,12 +546,13 @@ const rowClassName = ({ rowIndex }: any) => {
 
 const handleSizeChange = (size: number) => {
   pagination.pageSize = size
-  // 重新获取数据
+  pagination.page = 1
+  loadSpecs()
 }
 
 const handleCurrentChange = (current: number) => {
   pagination.page = current
-  // 重新获取数据
+  loadSpecs()
 }
 
 const getTypeText = (type: string) => {
@@ -727,6 +647,43 @@ onMounted(() => {
 
 .spec-list {
   margin-bottom: 24px;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.batch-left,
+.batch-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.selected-hint {
+  margin-left: 4px;
+  white-space: nowrap;
+  color: #606266;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .btn-text {
+    display: none;
+  }
+
+  .selected-hint {
+    display: none;
+  }
 }
 
 /* 自定义滚动条样式 */

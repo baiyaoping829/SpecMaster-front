@@ -1,0 +1,21 @@
+{
+  "seedSpecs": 25,
+  "routes": [
+    "/",
+    "/spec-data",
+    "/spec-data/upload",
+    "/spec-reader",
+    "/spec-reader-theme",
+    "/similar-clauses",
+    "/spec-qa",
+    "/plan-review",
+    "/risk-control",
+    "/contract-review",
+    "/accident-cases",
+    "/knowledge-base",
+    "/company-expert",
+    "/user-role",
+    "/expert-signature"
+  ]
+}
+

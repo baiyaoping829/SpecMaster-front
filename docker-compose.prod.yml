@@ -1,0 +1,27 @@
+services:
+  specmaster-api:
+    image: ${IMAGE_API:-specmaster-api:local}
+    container_name: specmaster-api
+    environment:
+      PORT: "3001"
+      AUTO_MIGRATE: "1"
+      DB_DIALECT: ${DB_DIALECT:-sqlite}
+      SQLITE_PATH: /data/specmaster.sqlite
+      E2E_WHITELIST: ${E2E_WHITELIST:-0}
+      E2E_KEY: ${E2E_KEY:-}
+    ports:
+      - "3001:3001"
+    volumes:
+      - specmaster-data:/data
+
+  specmaster-frontend:
+    image: ${IMAGE_FRONTEND:-specmaster-frontend:local}
+    container_name: specmaster-frontend
+    depends_on:
+      - specmaster-api
+    ports:
+      - "8080:80"
+
+volumes:
+  specmaster-data:
+

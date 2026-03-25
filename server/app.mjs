@@ -25,12 +25,33 @@ const distDir = join(__dirname, '..', 'dist')
 const ok = (data) => ({ code: 200, message: 'ok', data })
 const fail = (code, message) => ({ code, message, data: null })
 
+const isE2EWhitelistEnabled = () => process.env.E2E_WHITELIST === '1'
+const getE2EKey = (req) => {
+  const header = req.headers?.['x-e2e-key']
+  if (!header) return ''
+  return Array.isArray(header) ? String(header[0] || '') : String(header || '')
+}
+const requireE2EKey = (req) => {
+  const expected = String(process.env.E2E_KEY || '')
+  if (!expected) {
+    const e = new Error('e2e whitelist misconfigured')
+    e.status = 500
+    throw e
+  }
+  const got = getE2EKey(req)
+  if (!got || got !== expected) {
+    const e = new Error('forbidden')
+    e.status = 403
+    throw e
+  }
+}
+
 const sendJson = (res, status, payload) => {
   res.statusCode = status
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-DB-DIALECT')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-DB-DIALECT, X-E2E-KEY')
   res.end(JSON.stringify(payload))
 }
 
@@ -219,6 +240,7 @@ export const startApp = async () => {
           compilation_unit: '住房和城乡建设部',
           keywords: '防火,建筑',
           description: '建筑设计防火基本要求',
+          uploader_user_id: 'admin',
           version: 0,
           created_at: createdAt,
           updated_at: createdAt
@@ -234,6 +256,7 @@ export const startApp = async () => {
           compilation_unit: '住房和城乡建设部',
           keywords: '混凝土,结构',
           description: '混凝土结构设计要求',
+          uploader_user_id: 'admin',
           version: 0,
           created_at: createdAt,
           updated_at: createdAt
@@ -274,6 +297,88 @@ export const startApp = async () => {
         const redisOk = redis ? await redis.ping().then(() => true).catch(() => false) : false
         const minioOk = Boolean(minio.s3)
         sendJson(res, 200, ok({ ok: true, db: dbHealth, redis: redisOk, minio: minioOk }))
+        return
+      }
+
+      if (isE2EWhitelistEnabled() && pathname === '/api/test/whitelist/token' && method === 'POST') {
+        requireE2EKey(req)
+        const dialect = getDialectFromRequest(req, dbManager)
+        const db = dbManager.getDb(dialect)
+        const body = await readJson(req)
+        const username = String(body?.username || 'e2e')
+        const role = String(body?.role || 'admin')
+        let user = await db.selectFrom('users').selectAll().where('username', '=', username).executeTakeFirst()
+        if (!user) {
+          const id = String(Date.now()) + '-' + randomUUID()
+          const createdAt = new Date().toISOString()
+          await db
+            .insertInto('users')
+            .values({
+              id,
+              username,
+              password_hash: hashPassword(String(body?.password || 'e2e')),
+              role,
+              created_at: createdAt,
+              updated_at: createdAt
+            })
+            .execute()
+          user = await db.selectFrom('users').selectAll().where('username', '=', username).executeTakeFirst()
+        }
+        const token = await signToken({
+          secret: config.auth.jwtSecret,
+          ttlSeconds: config.auth.tokenTtlSeconds,
+          payload: { sub: user.id, username: user.username, role: user.role }
+        })
+        sendJson(res, 200, ok({ token, username: user.username, role: user.role }))
+        return
+      }
+
+      if (isE2EWhitelistEnabled() && pathname === '/api/test/whitelist/seed/specs' && method === 'POST') {
+        requireE2EKey(req)
+        const dialect = getDialectFromRequest(req, dbManager)
+        const db = dbManager.getDb(dialect)
+        const body = await readJson(req)
+        const count = Math.min(500, Math.max(0, Number(body?.count || 0)))
+        const token = String(body?.token || '')
+        let actorUserId = null
+        if (token) {
+          const payload = await verifyToken({ secret: config.auth.jwtSecret, token }).catch(() => null)
+          actorUserId = payload?.sub ? String(payload.sub) : null
+        }
+        const createdAt = new Date().toISOString()
+        const ids = []
+        for (let i = 0; i < count; i++) {
+          const id = String(Date.now()) + '-' + randomUUID()
+          ids.push(id)
+          await db
+            .insertInto('specs')
+            .values({
+              id,
+              name: `E2E-Seed-${Date.now()}-${i}`,
+              code: `E2E-${Date.now()}-${i}`,
+              type: 'GB',
+              level: 1,
+              status: 1,
+              implementation_date: null,
+              compilation_unit: null,
+              keywords: null,
+              description: null,
+              uploader_user_id: actorUserId,
+              version: 0,
+              created_at: createdAt,
+              updated_at: createdAt
+            })
+            .execute()
+        }
+        sendJson(res, 200, ok({ ids }))
+        return
+      }
+
+      if (isE2EWhitelistEnabled() && pathname === '/api/test/whitelist/process' && method === 'GET') {
+        requireE2EKey(req)
+        const mem = process.memoryUsage()
+        const cpu = process.cpuUsage()
+        sendJson(res, 200, ok({ pid: process.pid, uptimeMs: Math.floor(process.uptime() * 1000), mem, cpu }))
         return
       }
 
@@ -327,13 +432,40 @@ export const startApp = async () => {
 
       if (pathname === '/api/spec/list' && method === 'GET') {
         const dialect = getDialectFromRequest(req, dbManager)
+        const page = Number(url.searchParams.get('page') || 1)
+        const pageSize = Number(url.searchParams.get('pageSize') || 10)
+        const safePage = Number.isFinite(page) && page > 0 ? page : 1
+        const safePageSize = Number.isFinite(pageSize) && pageSize > 0 && pageSize <= 200 ? pageSize : 10
+        const offset = (safePage - 1) * safePageSize
         const query = {
+          page: safePage,
+          pageSize: safePageSize,
           name: url.searchParams.get('name') || '',
           code: url.searchParams.get('code') || '',
-          type: url.searchParams.get('type') || ''
+          type: url.searchParams.get('type') || '',
+          level: url.searchParams.get('level') || '',
+          status: url.searchParams.get('status') || '',
+          keywords: url.searchParams.get('keywords') || ''
         }
-        const data = await specService.list({ dialect, query, limit: 50, offset: 0 })
+        const data = await specService.list({ dialect, query, limit: safePageSize, offset })
         sendJson(res, 200, ok(data))
+        return
+      }
+
+      if (pathname === '/api/specifications/latest' && method === 'GET') {
+        const dialect = getDialectFromRequest(req, dbManager)
+        const data = await specService.latest({ dialect, limit: 50 })
+        sendJson(res, 200, ok(data))
+        return
+      }
+
+      if (pathname === '/api/specifications' && method === 'DELETE') {
+        const payload = await requireAuth({ req, config })
+        const dialect = getDialectFromRequest(req, dbManager)
+        const body = await readJson(req)
+        const ids = Array.isArray(body) ? body : Array.isArray(body?.ids) ? body.ids : []
+        const result = await specService.remove({ dialect, ids, actorUserId: String(payload.sub) })
+        sendJson(res, 200, ok(result))
         return
       }
 

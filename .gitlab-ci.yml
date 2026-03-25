@@ -1,0 +1,49 @@
+stages:
+  - test
+  - e2e
+
+variables:
+  CI: "1"
+  E2E_SUCCESS_RATE: "99"
+  E2E_P99_MS: "800"
+  E2E_SKIP_BUILD: "1"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+unit_integration:
+  stage: test
+  image: node:22-bookworm
+  script:
+    - npm ci
+    - npm run build
+    - npm test
+    - npm run test:ui
+    - npm run test:integration
+  artifacts:
+    when: always
+    paths:
+      - coverage/
+    expire_in: 7 days
+
+e2e_humanized:
+  stage: e2e
+  image: node:22-bookworm
+  needs: ["unit_integration"]
+  script:
+    - npm ci
+    - npx playwright install --with-deps
+    - npm run e2e:human
+    - npm run e2e:report || true
+  artifacts:
+    when: always
+    paths:
+      - reports/
+      - allure-report/
+      - allure-results/
+      - .e2e/
+      - test-results/
+    expire_in: 14 days
+

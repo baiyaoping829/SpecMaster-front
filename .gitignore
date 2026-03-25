@@ -17,11 +17,17 @@ dist-ssr
 test-results/
 allure-results/
 allure-report/
+reports/
+coverage/
 
 # Local databases
 *.sqlite
 *.sqlite-*
 *.db
+
+# Local perf artifacts
+perf/*.html
+perf/*.json
 
 # Editor directories and files
 .vscode/*
