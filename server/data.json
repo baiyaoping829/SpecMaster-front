@@ -1,0 +1,41 @@
+{
+  "specs": [
+    {
+      "id": "1",
+      "name": "建筑设计防火规范",
+      "code": "GB 50016-2014",
+      "type": "GB",
+      "level": 1,
+      "status": 1,
+      "implementationDate": "2015-05-01",
+      "compilationUnit": "住房和城乡建设部",
+      "keywords": "防火,建筑",
+      "description": "建筑设计防火基本要求"
+    },
+    {
+      "id": "2",
+      "name": "混凝土结构设计规范",
+      "code": "GB 50010-2010",
+      "type": "GB",
+      "level": 1,
+      "status": 1,
+      "implementationDate": "2011-07-01",
+      "compilationUnit": "住房和城乡建设部",
+      "keywords": "混凝土,结构",
+      "description": "混凝土结构设计要求"
+    }
+  ],
+  "categories": [
+    {
+      "id": "1",
+      "label": "建筑工程",
+      "children": [
+        {
+          "id": "1-1",
+          "label": "综合规范",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

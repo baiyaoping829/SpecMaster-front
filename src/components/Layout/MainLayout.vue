@@ -56,7 +56,8 @@
             <el-dropdown-menu>
               <el-dropdown-item>个人中心</el-dropdown-item>
               <el-dropdown-item>会员中心</el-dropdown-item>
-              <el-dropdown-item divided @click="userStore.logout()">退出登录</el-dropdown-item>
+              <el-dropdown-item v-if="!userStore.isLoggedIn" divided @click="router.push('/login')">登录</el-dropdown-item>
+              <el-dropdown-item v-else divided @click="userStore.logout()">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

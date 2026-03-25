@@ -341,7 +341,7 @@
         </el-form-item>
         
         <el-form-item label="兄弟公司">
-          <div v-for="(company, index) in companyForm.brotherCompanies" :key="index" style="display: flex; align-items: center; margin-bottom: 8px;">
+          <div v-for="(_company, index) in companyForm.brotherCompanies" :key="index" style="display: flex; align-items: center; margin-bottom: 8px;">
             <el-input v-model="companyForm.brotherCompanies[index]" placeholder="请输入兄弟公司名称" style="flex: 1; margin-right: 8px;" />
             <el-button type="danger" size="small" @click="removeBrotherCompany(index)">删除</el-button>
           </div>
@@ -349,7 +349,7 @@
         </el-form-item>
         
         <el-form-item label="子公司">
-          <div v-for="(company, index) in companyForm.subsidiaryCompanies" :key="index" style="display: flex; align-items: center; margin-bottom: 8px;">
+          <div v-for="(_company, index) in companyForm.subsidiaryCompanies" :key="index" style="display: flex; align-items: center; margin-bottom: 8px;">
             <el-input v-model="companyForm.subsidiaryCompanies[index]" placeholder="请输入子公司名称" style="flex: 1; margin-right: 8px;" />
             <el-button type="danger" size="small" @click="removeSubsidiaryCompany(index)">删除</el-button>
           </div>

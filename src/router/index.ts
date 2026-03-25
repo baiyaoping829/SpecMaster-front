@@ -4,6 +4,12 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/login',
+      name: 'Login',
+      component: () => import('../views/LoginView.vue'),
+      meta: { title: '登录' }
+    },
+    {
       path: '/',
       name: 'Home',
       component: () => import('../views/HomeView.vue')
@@ -18,7 +24,7 @@ const router = createRouter({
       path: '/spec-data/upload',
       name: 'SpecDataUpload',
       component: () => import('../views/SpecDataUploadView.vue'),
-      meta: { title: '上传规范标准' }
+      meta: { title: '上传规范标准', requiresAuth: true }
     },
     {
       path: '/spec-data/add-to-tree',
@@ -120,7 +126,7 @@ const router = createRouter({
       path: '/expert-signature',
       name: 'ExpertSignature',
       component: () => import('../views/ExpertSignatureView.vue'),
-      meta: { title: '专家签名管理' }
+      meta: { title: '专家签名管理', requiresAuth: true }
     }
   ]
 })
@@ -131,6 +137,12 @@ router.beforeEach((to, _from, next) => {
     document.title = `${to.meta.title} - SpecMaster`
   } else {
     document.title = 'SpecMaster'
+  }
+  const requiresAuth = Boolean((to.meta as any)?.requiresAuth)
+  const token = localStorage.getItem('token') || ''
+  if (requiresAuth && !token && to.path !== '/login') {
+    next({ path: '/login', query: { redirect: to.fullPath } })
+    return
   }
   next()
 })

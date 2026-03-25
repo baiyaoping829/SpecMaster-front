@@ -200,11 +200,6 @@ const availableThemes = ref([
 const similarClausesByOriginal = ref<Record<string, any[]>>({})
 const loading = ref(false)
 
-// 所有相似条款
-const allSimilarClauses = computed(() => {
-  return Object.values(similarClausesByOriginal.value).flat()
-})
-
 // 过滤后的相似条款，按原条款分组
 const filteredSimilarClausesByOriginal = computed(() => {
   const result: Record<string, any[]> = {}
@@ -335,22 +330,23 @@ const searchSimilarClauses = () => {
       let similarClausesForOriginal = []
       
       for (let i = 1; i <= 20; i++) {
-        let specInfo = specInfos[0]; // 默认使用第一个规范
+        let specInfo = specInfos[0]!; // 默认使用第一个规范
         
         // 根据搜索范围生成不同的规范信息
         if (searchConfig.searchScope === 'all') {
           // 所有规范：随机选择不同的规范
-          specInfo = specInfos[Math.floor(Math.random() * specInfos.length)];
+          specInfo = specInfos[Math.floor(Math.random() * specInfos.length)] || specInfos[0]!
         } else if (searchConfig.searchScope === 'themes' && searchConfig.targetThemes.length > 0) {
           // 指定主题库：根据主题库选择规范
           // 这里简化处理，根据主题ID选择规范
-          const themeIndex = (parseInt(searchConfig.targetThemes[0]) - 1) % specInfos.length;
-          specInfo = specInfos[themeIndex];
+          const themeId = searchConfig.targetThemes[0]
+          const themeIndex = themeId ? (parseInt(themeId) - 1) % specInfos.length : 0
+          specInfo = specInfos[Number.isFinite(themeIndex) ? themeIndex : 0] || specInfos[0]!
         } else if (searchConfig.searchScope === 'specific' && searchConfig.specificSpec) {
           // 指定规范：根据用户输入的规范名称选择
           const specIndex = specInfos.findIndex(info => info.name === searchConfig.specificSpec);
           if (specIndex !== -1) {
-            specInfo = specInfos[specIndex];
+            specInfo = specInfos[specIndex]!
           } else {
             // 如果用户输入的规范不在列表中，使用默认规范
             specInfo = {
@@ -409,7 +405,7 @@ const addRelation = (clause: any) => {
   ElMessage.success('已关联到知识图谱')
   
   // 这里可以实现实际的关联逻辑，如调用API将关联关系保存到数据库
-  console.log('添加关联:', originalClause.value.id, '->', clause.id)
+  console.log('添加关联:', clause.originalClauseId, '->', clause.id)
 }
 
 // 关闭页面

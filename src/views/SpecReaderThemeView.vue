@@ -291,7 +291,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useReaderStore, Theme, Spec } from '../store/modules/reader'
+import { useReaderStore } from '../store/modules/reader'
+import type { Theme, Spec } from '../store/modules/reader'
 
 // 响应式数据
 const displayMode = ref('list')
@@ -589,13 +590,6 @@ const filteredSpecList = computed(() => {
 // 选择的规范
 const selectedSpecs = ref<any[]>([])
 
-// 可用规范（用于下拉选择）
-const availableSpecs = computed(() => {
-  return readerStore.availableSpecs
-})
-
-const loadingSpecs = ref(false)
-
 // 生命周期钩子
 onMounted(() => {
   // 初始化主题数据
@@ -674,15 +668,6 @@ const addSpecsToTheme = () => {
   addSpecDialogVisible.value = true
 }
 
-const remoteSearchSpecs = (query: string) => {
-  loadingSpecs.value = true
-  // 模拟远程搜索
-  setTimeout(() => {
-    // 这里可以根据query过滤规范
-    loadingSpecs.value = false
-  }, 1000)
-}
-
 const saveSpecsToTheme = () => {
   // 检查是否选择了主题
   if (addSpecForm.themeIds.length === 0) {
@@ -704,13 +689,14 @@ const saveSpecsToTheme = () => {
   // 处理上传的文件
   if (uploadFiles.value.length > 0) {
     uploadFiles.value.forEach(file => {
+      const today = new Date().toISOString().split('T')[0] || ''
       // 为上传的文件创建一个临时规范对象
       const newSpec: Spec = {
         id: `upload_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         name: file.name,
         code: '',
-        issueDate: new Date().toISOString().split('T')[0],
-        effectiveDate: new Date().toISOString().split('T')[0],
+        issueDate: today,
+        effectiveDate: today,
         note: `上传文件: ${file.name}`
       }
       
@@ -787,13 +773,14 @@ const handleAddUploadedDocs = () => {
   
   // 处理上传的文件
   uploadFiles.value.forEach(file => {
+    const today = new Date().toISOString().split('T')[0] || ''
     // 为上传的文件创建一个临时规范对象
     const newSpec: Spec = {
       id: `upload_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       name: file.name,
       code: '',
-      issueDate: new Date().toISOString().split('T')[0],
-      effectiveDate: new Date().toISOString().split('T')[0],
+      issueDate: today,
+      effectiveDate: today,
       note: `上传文件: ${file.name}`
     }
     

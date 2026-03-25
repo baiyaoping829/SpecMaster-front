@@ -59,7 +59,7 @@ const toggleSidebar = () => {
 }
 
 // 开始调整大小
-const startResize = (event: MouseEvent) => {
+const startResize = (_event: MouseEvent) => {
   isResizing.value = true
   document.addEventListener('mousemove', handleResize)
   document.addEventListener('mouseup', stopResize)

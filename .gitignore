@@ -12,6 +12,17 @@ dist
 dist-ssr
 *.local
 
+# E2E artifacts
+.e2e/
+test-results/
+allure-results/
+allure-report/
+
+# Local databases
+*.sqlite
+*.sqlite-*
+*.db
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

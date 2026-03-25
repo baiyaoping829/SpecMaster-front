@@ -16,6 +16,7 @@ request.interceptors.request.use(
   (config) => {
     const userStore = useUserStore()
     if (userStore.token) {
+      config.headers = config.headers || {}
       config.headers.Authorization = `Bearer ${userStore.token}`
     }
     return config
@@ -29,9 +30,12 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => {
     const res = response.data
-    if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
-      return Promise.reject(res)
+    if (res && typeof res === 'object' && 'code' in res) {
+      if ((res as any).code !== 200) {
+        ElMessage.error((res as any).message || '请求失败')
+        return Promise.reject(res)
+      }
+      return res
     }
     return res
   },

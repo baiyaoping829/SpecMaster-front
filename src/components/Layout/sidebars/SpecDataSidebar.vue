@@ -126,17 +126,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSpecStore } from '../../../store/modules/spec'
-import { ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const specStore = useSpecStore()
 
+type TreeNode = {
+  id: string
+  label: string
+  color?: string
+  children?: TreeNode[]
+  isSpec?: boolean
+  specId?: string
+}
+
+type MatchResult = {
+  id: number
+  specName: string
+  matchNode: string
+  matchScore: string
+  specId: string
+}
+
 // 目录树数据
-const treeData = ref([
+const treeData = ref<TreeNode[]>([
   {
     id: '1',
     label: '建筑工程',
@@ -1002,7 +1018,7 @@ const treeData = ref([
 ])
 
 // 选中的节点
-const selectedNode = ref(null)
+const selectedNode = ref<TreeNode | null>(null)
 
 // 默认展开的节点（仅展开到一级行业分类）
 const defaultExpandedKeys = ref([
@@ -1029,10 +1045,10 @@ const smartMatchForm = reactive({
   matchScope: ['category', 'keyword'],
   customerConfig: 'default'
 })
-const matchResults = ref([])
+const matchResults = ref<MatchResult[]>([])
 
 // 处理节点点击
-const handleNodeClick = (data: any, _node: any) => {
+const handleNodeClick = (data: TreeNode, _node: any) => {
   selectedNode.value = data
   if (data.isSpec && data.specId) {
     // 导航到规范详情页
@@ -1045,7 +1061,7 @@ const handleNodeClick = (data: any, _node: any) => {
 }
 
 // 处理右键菜单
-const handleContextMenu = (event: MouseEvent, data: any, _node: any, _tree: any) => {
+const handleContextMenu = (event: MouseEvent, data: TreeNode, _node: any, _tree: any) => {
   event.preventDefault()
   selectedNode.value = data
   contextMenuPosition.x = event.clientX
@@ -1098,34 +1114,27 @@ const addSiblingNode = () => {
   if (selectedNode.value) {
     const newLabel = prompt('请输入新的兄弟节点名称:')
     if (newLabel && newLabel.trim() !== '') {
-      // 找到父节点
-      let parentNode = null
-      let parentChildren = null
-      
-      // 递归查找父节点
-      const findParent = (nodes: any[], targetId: string) => {
-        for (let node of nodes) {
-          if (node.children) {
-            if (node.children.some((child: any) => child.id === targetId)) {
-              parentNode = node
-              parentChildren = node.children
-              return true
-            }
-            if (findParent(node.children, targetId)) {
-              return true
-            }
+      const findParentInfo = (nodes: TreeNode[], targetId: string): { parent: TreeNode; children: TreeNode[] } | null => {
+        for (const node of nodes) {
+          const children = node.children
+          if (children?.some(child => child.id === targetId)) {
+            return { parent: node, children }
+          }
+          if (children?.length) {
+            const found = findParentInfo(children, targetId)
+            if (found) return found
           }
         }
-        return false
+        return null
       }
-      
-      findParent(treeData.value, selectedNode.value.id)
-      
-      if (parentChildren) {
+
+      const parentInfo = findParentInfo(treeData.value, selectedNode.value.id)
+      if (parentInfo) {
+        const { parent, children } = parentInfo
         // 生成唯一ID
-        const newId = `${parentNode.id}-${parentChildren.length + 1}`
+        const newId = `${parent.id}-${children.length + 1}`
         // 添加新节点
-        parentChildren.push({
+        children.push({
           id: newId,
           label: newLabel.trim(),
           children: []
@@ -1140,32 +1149,24 @@ const addSiblingNode = () => {
 const deleteSelectedNode = () => {
   if (selectedNode.value) {
     if (confirm('确定要删除这个节点吗？')) {
-      // 找到父节点
-      let parentNode = null
-      let parentChildren = null
-      
-      // 递归查找父节点
-      const findParent = (nodes: any[], targetId: string) => {
-        for (let node of nodes) {
-          if (node.children) {
-            if (node.children.some((child: any) => child.id === targetId)) {
-              parentNode = node
-              parentChildren = node.children
-              return true
-            }
-            if (findParent(node.children, targetId)) {
-              return true
-            }
+      const findParentChildren = (nodes: TreeNode[], targetId: string): TreeNode[] | null => {
+        for (const node of nodes) {
+          const children = node.children
+          if (children?.some(child => child.id === targetId)) {
+            return children
+          }
+          if (children?.length) {
+            const found = findParentChildren(children, targetId)
+            if (found) return found
           }
         }
-        return false
+        return null
       }
-      
-      findParent(treeData.value, selectedNode.value.id)
-      
-      if (parentChildren) {
+
+      const parentChildren = findParentChildren(treeData.value, selectedNode.value.id)
+      if (parentChildren && selectedNode.value) {
         // 找到要删除的节点索引
-        const index = parentChildren.findIndex((child: any) => child.id === selectedNode.value.id)
+        const index = parentChildren.findIndex(child => child.id === selectedNode.value?.id)
         if (index > -1) {
           // 删除节点
           parentChildren.splice(index, 1)

@@ -1102,12 +1102,6 @@ const chatMessages = ref<ChatMessage[]>([
   }
 ])
 
-const recommendedQuestions = ref([
-  '建筑设计防火规范中对防火墙的要求是什么？',
-  '混凝土结构设计规范中对钢筋的要求是什么？',
-  '建筑抗震设计规范中对建筑高度的限制是什么？'
-])
-
 // 鼠标悬浮消息索引
 const hoveredMessageIndex = ref(-1)
 
@@ -1173,43 +1167,6 @@ const knowledgeItems = ref([
   { id: 'knowledge-3', name: '建筑机械使用安全技术规程' },
   { id: 'knowledge-4', name: '施工现场临时用电安全技术规范' },
   { id: 'knowledge-5', name: '建筑施工扣件式钢管脚手架安全技术规范' }
-])
-
-// 模拟数据
-const reviewOpinion = ref(`根据约束主题和相关规范，对该施工方案进行了全面审查，发现以下问题：
-
-1. 方案中对防火措施的描述不够详细，未明确防火等级和具体措施
-2. 混凝土结构设计参数不符合规范要求，需要重新计算
-3. 安全措施不全面，缺少应急预案
-4. 施工进度安排不合理，可能影响整体工期
-
-建议对以上问题进行修改后重新提交审查。`)
-
-const reviewSuggestions = ref<ReviewSuggestion[]>([
-  {
-    issue: '防火措施描述不够详细',
-    suggestion: '应明确防火等级，增加具体的防火措施和消防设施布置',
-    standard: '建筑设计防火规范 (GB 50016-2014)',
-    riskLevel: '高'
-  },
-  {
-    issue: '混凝土结构设计参数不符合规范要求',
-    suggestion: '根据混凝土结构设计规范 (GB 50010-2010) 重新计算结构参数',
-    standard: '混凝土结构设计规范 (GB 50010-2010)',
-    riskLevel: '高'
-  },
-  {
-    issue: '安全措施不全面',
-    suggestion: '增加详细的安全措施和应急预案',
-    standard: '建筑施工安全检查标准 (JGJ59-2011)',
-    riskLevel: '中'
-  },
-  {
-    issue: '施工进度安排不合理',
-    suggestion: '重新调整施工进度计划，确保各工序合理衔接',
-    standard: '建设工程项目管理规范 (GB/T50326-2017)',
-    riskLevel: '低'
-  }
 ])
 
 // 状态管理
@@ -1892,7 +1849,9 @@ const toggleSuggestionStatus = (index: number) => {
 // 处理修改内容输入
 const handleModificationInput = (index: number, value: string) => {
   if (!finalReviewResult.value) return
-  finalReviewResult.value.suggestions[index].modification = value
+  const suggestion = finalReviewResult.value.suggestions[index]
+  if (!suggestion) return
+  suggestion.modification = value
 }
 
 // 切换模型建议状态
@@ -1934,7 +1893,9 @@ const toggleModelSuggestionStatus = (model: string, index: number) => {
 const handleModelModificationInput = (model: string, index: number, value: string) => {
   const result = modelReviewResults.value.find(r => r.model === model)
   if (!result) return
-  result.suggestions[index].modification = value
+  const suggestion = result.suggestions[index]
+  if (!suggestion) return
+  suggestion.modification = value
 }
 
 // 专家签名相关
@@ -2176,7 +2137,7 @@ const generateReviewDocument = () => {
 }
 
 // 生成PDF文件
-const generatePDF = (content: string, fileName: string) => {
+const generatePDF = (_content: string, fileName: string) => {
   // 模拟PDF生成
   ElMessage.info(`正在生成PDF文件: ${fileName}`)
   setTimeout(() => {
@@ -2218,10 +2179,6 @@ const confirmReview = () => {
   
   ElMessage.success('审查已确认，审查意见文档已生成')
   // 这里可以添加确认后的处理逻辑
-}
-
-const downloadReport = () => {
-  console.log('下载审查报告')
 }
 
 // 约束主题来源相关方法
@@ -2787,11 +2744,6 @@ const clearChat = () => {
       references: []
     }
   ]
-}
-
-const useRecommendedQuestion = (question: string) => {
-  userInput.value = question
-  handleSend()
 }
 
 // 复制消息内容到剪贴板并填充到输入框

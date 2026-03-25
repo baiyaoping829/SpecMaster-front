@@ -420,8 +420,24 @@
 import { ref, reactive, onMounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataAnalysis, UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled } from '@element-plus/icons-vue'
 import * as d3 from 'd3'
+
+type GraphConnectionType = 'virtual' | 'actual'
+type GraphConnection = { target: string; type: GraphConnectionType }
+type KnowledgeGraphNode = {
+  id: string
+  title: string
+  content: string
+  level: number
+  parentId: string
+  connections: GraphConnection[]
+  x?: number
+  y?: number
+  fx?: number | null
+  fy?: number | null
+}
+type GraphLink = { source: string; target: string; type?: GraphConnectionType; strength?: number }
 
 // 响应式数据
 const route = useRoute()
@@ -454,7 +470,7 @@ const configCollapsed = ref(true)
 const fullScreenMode = ref(false)
 
 // 智能连图相关数据
-const virtualLinks = ref<any[]>([])
+const virtualLinks = ref<GraphLink[]>([])
 const intelligentConnectLoading = ref(false)
 
 // 表格配置
@@ -527,7 +543,7 @@ const convertForm = reactive({
 })
 
 // 知识图谱数据
-const knowledgeGraphData = ref([
+const knowledgeGraphData = ref<KnowledgeGraphNode[]>([
   {
     id: '1',
     title: '总则',
@@ -858,7 +874,7 @@ const knowledgeGraphData = ref([
     level: 3,
     parentId: '8.2'
   }
-])
+].map((node) => ({ ...node, connections: (node as any).connections ?? [] })))
 
 // 加载规范信息
 const loadSpecData = () => {
@@ -1245,9 +1261,9 @@ const handleIntelligentConnect = () => {
 }
 
 // 检测子图
-const detectSubgraphs = () => {
+const detectSubgraphs = (): KnowledgeGraphNode[][] => {
   const nodes = knowledgeGraphData.value
-  const links = []
+  const links: GraphLink[] = []
   
   // 构建连接关系
   nodes.forEach(node => {
@@ -1260,17 +1276,22 @@ const detectSubgraphs = () => {
   })
   
   // 使用并查集检测子图
-  const parent = {}
+  const parent: Record<string, string> = {}
   nodes.forEach(node => {
     parent[node.id] = node.id
   })
   
   // 查找根节点
-  const find = (id: string) => {
-    if (parent[id] !== id) {
-      parent[id] = find(parent[id])
+  const find = (id: string): string => {
+    const p = parent[id]
+    if (!p) {
+      parent[id] = id
+      return id
     }
-    return parent[id]
+    if (p !== id) {
+      parent[id] = find(p)
+    }
+    return parent[id] || id
   }
   
   // 合并集合
@@ -1283,7 +1304,7 @@ const detectSubgraphs = () => {
   })
   
   // 统计子图
-  const subgraphs = {}
+  const subgraphs: Record<string, KnowledgeGraphNode[]> = {}
   nodes.forEach(node => {
     const root = find(node.id)
     if (!subgraphs[root]) {
@@ -1296,12 +1317,12 @@ const detectSubgraphs = () => {
 }
 
 // 生成虚拟连接
-const generateVirtualLinks = (subgraphs: any[][]) => {
-  const virtualLinks = []
+const generateVirtualLinks = (subgraphs: KnowledgeGraphNode[][]): GraphLink[] => {
+  const generatedLinks: GraphLink[] = []
   
   // 如果子图数量小于2，不需要生成虚拟连接
   if (subgraphs.length < 2) {
-    return virtualLinks
+    return generatedLinks
   }
   
   // 为每对子图生成虚拟连接
@@ -1310,27 +1331,26 @@ const generateVirtualLinks = (subgraphs: any[][]) => {
       // 选择每个子图的根节点
       const subgraph1 = subgraphs[i]
       const subgraph2 = subgraphs[j]
+      if (!subgraph1?.length || !subgraph2?.length) continue
       
       // 找到每个子图的根节点（parentId为空的节点）
-      const root1 = subgraph1.find((node: any) => !node.parentId) || subgraph1[0]
-      const root2 = subgraph2.find((node: any) => !node.parentId) || subgraph2[0]
+      const root1 = subgraph1.find(node => !node.parentId) ?? subgraph1[0]
+      const root2 = subgraph2.find(node => !node.parentId) ?? subgraph2[0]
+      if (!root1 || !root2) continue
       
       // 生成虚拟连接
-      const virtualLink = {
+      const virtualLink: GraphLink = {
         source: root1.id,
         target: root2.id,
         type: 'virtual',
         strength: Math.random() * 0.5 + 0.5 // 连接强度
       }
       
-      virtualLinks.push(virtualLink)
+      generatedLinks.push(virtualLink)
       
       // 更新源节点的连接信息
       const sourceNode = knowledgeGraphData.value.find(node => node.id === root1.id)
       if (sourceNode) {
-        if (!sourceNode.connections) {
-          sourceNode.connections = []
-        }
         // 添加虚拟连接
         sourceNode.connections.push({
           target: root2.id,
@@ -1341,9 +1361,6 @@ const generateVirtualLinks = (subgraphs: any[][]) => {
       // 更新目标节点的连接信息
       const targetNode = knowledgeGraphData.value.find(node => node.id === root2.id)
       if (targetNode) {
-        if (!targetNode.connections) {
-          targetNode.connections = []
-        }
         // 添加虚拟连接
         targetNode.connections.push({
           target: root1.id,
@@ -1353,7 +1370,7 @@ const generateVirtualLinks = (subgraphs: any[][]) => {
     }
   }
   
-  return virtualLinks
+  return generatedLinks
 }
 
 // 显示虚拟连接确认对话框
@@ -1375,9 +1392,6 @@ const confirmVirtualLinks = () => {
     // 更新源节点的连接信息
     const sourceNode = knowledgeGraphData.value.find(node => node.id === link.source)
     if (sourceNode) {
-      if (!sourceNode.connections) {
-        sourceNode.connections = []
-      }
       // 移除虚拟连接
       sourceNode.connections = sourceNode.connections.filter(conn => !(conn.target === link.target && conn.type === 'virtual'))
       // 添加实际连接
@@ -1390,9 +1404,6 @@ const confirmVirtualLinks = () => {
     // 更新目标节点的连接信息
     const targetNode = knowledgeGraphData.value.find(node => node.id === link.target)
     if (targetNode) {
-      if (!targetNode.connections) {
-        targetNode.connections = []
-      }
       // 移除虚拟连接
       targetNode.connections = targetNode.connections.filter(conn => !(conn.target === link.source && conn.type === 'virtual'))
       // 添加实际连接
@@ -1431,8 +1442,10 @@ const editRecord = (record: any) => {
 const saveEdit = () => {
   const index = knowledgeGraphData.value.findIndex(node => node.id === editForm.id)
   if (index !== -1) {
+    const current = knowledgeGraphData.value[index]
+    if (!current) return
     knowledgeGraphData.value[index] = {
-      ...knowledgeGraphData.value[index],
+      ...current,
       title: editForm.title,
       content: editForm.content,
       level: editForm.level,
@@ -1473,7 +1486,9 @@ const deleteRecord = (id: string) => {
 const addRecordBelow = (id: string) => {
   const index = knowledgeGraphData.value.findIndex(node => node.id === id)
   if (index !== -1) {
-    addForm.parentId = knowledgeGraphData.value[index].parentId
+    const record = knowledgeGraphData.value[index]
+    if (!record) return
+    addForm.parentId = record.parentId
     addDialogVisible.value = true
   }
 }
@@ -1513,12 +1528,12 @@ const deleteVirtualConnection = (sourceId: string, targetId: string) => {
   
   // 从知识图谱数据中删除
   const sourceNode = knowledgeGraphData.value.find(node => node.id === sourceId)
-  if (sourceNode && sourceNode.connections) {
+  if (sourceNode) {
     sourceNode.connections = sourceNode.connections.filter(conn => !(conn.target === targetId && conn.type === 'virtual'))
   }
   
   const targetNode = knowledgeGraphData.value.find(node => node.id === targetId)
-  if (targetNode && targetNode.connections) {
+  if (targetNode) {
     targetNode.connections = targetNode.connections.filter(conn => !(conn.target === sourceId && conn.type === 'virtual'))
   }
   
@@ -1565,14 +1580,14 @@ const renderKnowledgeGraph = () => {
       })
       
       // 准备数据
-      const nodes = filteredData.map(item => ({
+      const nodes: Array<Pick<KnowledgeGraphNode, 'id' | 'title' | 'level' | 'connections'> & { x?: number; y?: number }> = filteredData.map(item => ({
         id: item.id,
         title: item.title,
         level: item.level,
-        connections: item.connections || []
+        connections: item.connections
       }))
       
-      const links = []
+      const links: GraphLink[] = []
       filteredData.forEach(item => {
         if (item.parentId) {
           links.push({
@@ -1720,11 +1735,11 @@ const renderKnowledgeGraph = () => {
       
       // 添加SVG拖拽功能（移动整个图谱）
       svg.call(d3.drag()
-        .on('start', (event) => {
+        .on('start', (_event: any) => {
           // 禁用节点拖拽
           node.attr('pointer-events', 'none')
         })
-        .on('drag', (event) => {
+        .on('drag', (event: any) => {
           // 移动所有节点
           formattedNodes.forEach(node => {
             node.x = (node.x || 0) + event.dx
@@ -1733,7 +1748,7 @@ const renderKnowledgeGraph = () => {
           // 更新力导向图
           simulation.alpha(0.3).restart()
         })
-        .on('end', (event) => {
+        .on('end', (_event: any) => {
           // 启用节点拖拽
           node.attr('pointer-events', 'all')
           simulation.alphaTarget(0)

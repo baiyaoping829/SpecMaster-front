@@ -30,6 +30,26 @@ export const useUserStore = defineStore('user', {
     setUserLevel(level: number) {
       this.userLevel = level
     },
+    async login(username: string, password: string) {
+      const loginRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      }).then(r => r.json())
+      if (loginRes?.code !== 200) {
+        throw new Error(loginRes?.message || '登录失败')
+      }
+      const token = loginRes.data?.token || ''
+      this.setToken(token)
+      const meRes = await fetch('/api/auth/me', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(r => r.json())
+      if (meRes?.code !== 200) {
+        throw new Error(meRes?.message || '获取用户信息失败')
+      }
+      this.setUserInfo({ username: meRes.data?.username, role: meRes.data?.role, id: meRes.data?.sub })
+    },
     logout() {
       this.userInfo = null
       this.token = ''

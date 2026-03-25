@@ -196,15 +196,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useSpecStore } from '../store/modules/spec'
 import { FolderAdd, Upload, Download } from '@element-plus/icons-vue'
+import { specApi } from '../api/spec'
 
-const router = useRouter()
 const specStore = useSpecStore()
 
 // 响应式数据
 const viewMode = ref<'list' | 'card'>('list')
+const loading = ref(false)
 const searchForm = reactive({
   name: '',
   code: '',
@@ -507,11 +507,28 @@ const handleViewModeChange = (mode: 'list' | 'card') => {
   specStore.setViewMode(mode)
 }
 
+const loadSpecs = async () => {
+  loading.value = true
+  try {
+    const res = await specApi.getSpecList({
+      name: searchForm.name || undefined,
+      code: searchForm.code || undefined,
+      type: searchForm.type || undefined
+    })
+    const items = Array.isArray(res.data?.items) ? res.data.items : []
+    specList.value = items.map((s: any) => ({
+      ...s,
+      implementationDate: s.implementation_date || s.implementationDate,
+      compilationUnit: s.compilation_unit || s.compilationUnit
+    }))
+    pagination.total = Number(res.data?.total || 0)
+  } finally {
+    loading.value = false
+  }
+}
+
 const handleSearch = () => {
-  // 执行搜索逻辑
-  console.log('搜索参数:', searchForm)
-  // 由于使用了计算属性，过滤会自动执行
-  // 这里可以调用API获取数据
+  loadSpecs()
 }
 
 const resetForm = () => {
@@ -523,6 +540,7 @@ const resetForm = () => {
     status: '',
     keywords: ''
   })
+  loadSpecs()
 }
 
 const handleUpload = () => {
@@ -662,6 +680,7 @@ onMounted(() => {
   // 初始化加载数据
   specStore.loadViewMode()
   viewMode.value = specStore.viewMode
+  loadSpecs()
 })
 </script>
 

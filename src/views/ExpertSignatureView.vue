@@ -93,7 +93,7 @@
           <el-input 
             v-model="signatureSearch" 
             placeholder="搜索签名" 
-            prefix-icon="Search"
+            :prefix-icon="Search"
           />
         </div>
         <div class="signature-grid">
@@ -423,12 +423,13 @@ const confirmUpload = async () => {
     // 模拟上传过程
     await new Promise(resolve => setTimeout(resolve, 1500))
     
+    const today = new Date().toISOString().split('T')[0] || ''
     // 创建新签名对象
     const newSignature: Signature = {
       id: String(Date.now()),
       name: uploadedFiles.value[0].name,
       url: URL.createObjectURL(uploadedFiles.value[0].raw),
-      uploadDate: new Date().toISOString().split('T')[0]
+      uploadDate: today
     }
     
     // 添加到签名列表
@@ -483,6 +484,7 @@ const associateSignature = () => {
 
 // 关联签名与专家
 const associateSignatureWithExpert = (signature: Signature) => {
+  const today = new Date().toISOString().split('T')[0] || ''
   const newAssociation: SignatureAssociation = {
     id: String(Date.now()),
     expertName: expertInfo.name,
@@ -490,7 +492,7 @@ const associateSignatureWithExpert = (signature: Signature) => {
     signatureId: signature.id,
     signatureName: signature.name,
     signatureUrl: signature.url,
-    associateDate: new Date().toISOString().split('T')[0]
+    associateDate: today
   }
   
   signatureAssociations.value.push(newAssociation)
@@ -571,11 +573,14 @@ const confirmReplace = async () => {
     // 更新签名
     const index = signatures.value.findIndex(s => s.id === currentReplaceId.value)
     if (index !== -1) {
-      const updatedSignature = {
-        ...signatures.value[index],
+      const current = signatures.value[index]
+      if (!current) return
+      const today = new Date().toISOString().split('T')[0] || ''
+      const updatedSignature: Signature = {
+        ...current,
         name: replaceFileList.value[0].name,
         url: URL.createObjectURL(replaceFileList.value[0].raw),
-        uploadDate: new Date().toISOString().split('T')[0]
+        uploadDate: today
       }
       signatures.value[index] = updatedSignature
       
@@ -623,7 +628,10 @@ const deleteSignature = (id: string) => {
       
       // 如果删除的是当前选中的签名，选择第一个签名
       if (selectedSignatureId.value === id && signatures.value.length > 0) {
-        selectedSignatureId.value = signatures.value[0].id
+        const first = signatures.value[0]
+        if (first) {
+          selectedSignatureId.value = first.id
+        }
       } else if (signatures.value.length === 0) {
         selectedSignatureId.value = ''
       }
@@ -668,11 +676,12 @@ const confirmMobileSignature = async () => {
     await new Promise(resolve => setTimeout(resolve, 1500))
     
     // 创建新签名对象
+    const today = new Date().toISOString().split('T')[0] || ''
     const newSignature: Signature = {
       id: String(Date.now()),
       name: `${expertInfo.name}的手机签名`,
       url: mobileSignatureData.value,
-      uploadDate: new Date().toISOString().split('T')[0]
+      uploadDate: today
     }
     
     // 添加到签名列表

@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit + Integration (node:test)
+        run: npm test
+
+      - name: Start infra
+        run: docker compose -f docker-compose.infra.yml up -d
+
+      - name: E2E (Playwright)
+        env:
+          E2E_FULL: "1"
+          REDIS_ENABLED: "1"
+          MINIO_ENABLED: "1"
+          MINIO_ENDPOINT: "http://127.0.0.1:9000"
+          MINIO_ACCESS_KEY: "minioadmin"
+          MINIO_SECRET_KEY: "minioadmin"
+          MINIO_BUCKET: "specmaster-docs"
+        run: |
+          npx playwright install --with-deps
+          npm run e2e
+
+      - name: Allure report
+        if: always()
+        run: npm run e2e:report
+
+      - name: Upload Allure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report
