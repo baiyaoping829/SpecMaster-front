@@ -98,6 +98,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
+import { specApi } from '../api/spec'
 
 // 响应式数据
 const uploadForm = reactive({
@@ -148,27 +149,66 @@ const autoFillFromPDF = () => {
   }, 2000)
 }
 
-const handleSubmit = () => {
+const normalizeDate = (value: any) => {
+  if (!value) return null
+  if (value instanceof Date) return value.toISOString()
+  return String(value)
+}
+
+const handleSubmit = async () => {
   // 验证表单
   if (!uploadForm.name || !uploadForm.code || !uploadForm.type || !uploadForm.level || !uploadForm.status || !uploadForm.implementationDate || !uploadForm.compilationUnit) {
     ElMessage.warning('请填写所有必填项')
     return
   }
-  
+
   if (!selectedFile.value) {
     ElMessage.warning('请上传PDF文件')
     return
   }
-  
+
   isSubmitting.value = true
-  
-  // 模拟提交过程
-  setTimeout(() => {
-    console.log('上传规范标准:', uploadForm)
+
+  try {
+    const token = localStorage.getItem('token') || ''
+    const fd = new FormData()
+    fd.append('file', selectedFile.value, selectedFile.value.name)
+    const fileRes = await fetch('/api/file/upload', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: fd
+    })
+    const fileBody = await fileRes.json().catch(() => null)
+    if (!fileBody || fileBody.code !== 200) {
+      throw new Error(fileBody?.message || '文件上传失败')
+    }
+    const fileObjectId = String(fileBody.data?.meta?.id || '')
+
+    const res = await specApi.uploadSpec({
+      name: uploadForm.name,
+      code: uploadForm.code,
+      type: uploadForm.type,
+      level: Number(uploadForm.level),
+      status: Number(uploadForm.status),
+      implementationDate: normalizeDate(uploadForm.implementationDate),
+      compilationUnit: uploadForm.compilationUnit,
+      description: uploadForm.description,
+      keywords: uploadForm.keywords,
+      fileObjectId
+    })
+    const id = String(res.data?.id || '')
+    if (id) localStorage.setItem('lastUploadedSpecId', id)
+    if (fileObjectId) localStorage.setItem('lastUploadedFileObjectId', fileObjectId)
     ElMessage.success('上传成功')
-    // 关闭窗口
-    window.close()
-  }, 2000)
+    try {
+      window.close()
+    } catch {
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '上传失败')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const handleCancel = () => {

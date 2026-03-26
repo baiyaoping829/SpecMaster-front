@@ -622,6 +622,104 @@ export const startApp = async () => {
         return
       }
 
+      const filePresignMatch = pathname.match(/^\/api\/file\/presign\/([^/]+)$/)
+      if (filePresignMatch && method === 'GET') {
+        await requireAuth({ req, config })
+        const dialect = getDialectFromRequest(req, dbManager)
+        if (!minio.s3) {
+          sendJson(res, 200, fail(503, 'minio disabled'))
+          return
+        }
+        const id = filePresignMatch[1]
+        const data = await fileService.presignGetUrl({ dialect, id })
+        if (!data) {
+          sendJson(res, 200, fail(404, 'not found'))
+          return
+        }
+        sendJson(res, 200, ok(data))
+        return
+      }
+
+      const fileContentMatch = pathname.match(/^\/api\/file\/content\/([^/]+)$/)
+      if (fileContentMatch && method === 'GET') {
+        try {
+          await requireAuth({ req, config })
+        } catch {
+          res.statusCode = 401
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('unauthorized')
+          return
+        }
+        const dialect = getDialectFromRequest(req, dbManager)
+        if (!minio.s3) {
+          res.statusCode = 503
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('minio disabled')
+          return
+        }
+        const id = fileContentMatch[1]
+        const data = await fileService.getContentStream({ dialect, id }).catch(() => null)
+        if (!data) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('not found')
+          return
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', data.meta?.mime_type || 'application/pdf')
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(String(data.meta?.original_name || 'document.pdf'))}"`)
+        data.stream.pipe(res)
+        return
+      }
+
+      const cmapMatch = pathname.match(/^\/api\/pdfjs\/cmaps\/([^/]+)$/)
+      if (cmapMatch && method === 'GET') {
+        const fileName = decodeURIComponent(String(cmapMatch[1] || ''))
+        if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\') || !fileName.endsWith('.bcmap')) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('bad request')
+          return
+        }
+        const filePath = join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'cmaps', fileName)
+        const buf = await readFile(filePath).catch(() => null)
+        if (!buf) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('not found')
+          return
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/octet-stream')
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        res.end(buf)
+        return
+      }
+
+      const stdFontMatch = pathname.match(/^\/api\/pdfjs\/standard_fonts\/([^/]+)$/)
+      if (stdFontMatch && method === 'GET') {
+        const fileName = decodeURIComponent(String(stdFontMatch[1] || ''))
+        if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('bad request')
+          return
+        }
+        const filePath = join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'standard_fonts', fileName)
+        const buf = await readFile(filePath).catch(() => null)
+        if (!buf) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('not found')
+          return
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/octet-stream')
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        res.end(buf)
+        return
+      }
+
       if (pathname.startsWith('/api/')) {
         sendJson(res, 200, fail(404, 'not found'))
         return

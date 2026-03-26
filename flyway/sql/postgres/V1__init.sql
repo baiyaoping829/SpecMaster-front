@@ -18,6 +18,7 @@ create table if not exists specs (
   keywords varchar(512),
   description text,
   uploader_user_id varchar(64),
+  file_object_id varchar(64),
   version integer not null default 0,
   created_at timestamptz not null,
   updated_at timestamptz not null

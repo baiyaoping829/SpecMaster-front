@@ -74,6 +74,7 @@ export const createSpecService = ({ dbManager, cache }) => {
       keywords: input.keywords || null,
       description: input.description || null,
       uploader_user_id: actorUserId || null,
+      file_object_id: input.fileObjectId ? String(input.fileObjectId) : input.file_object_id ? String(input.file_object_id) : null,
       version: 0,
       created_at: createdAt,
       updated_at: updatedAt

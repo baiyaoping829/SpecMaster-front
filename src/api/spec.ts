@@ -36,6 +36,13 @@ export const specApi = {
       data
     })
   },
+  updateSpec: (id: string, data: any) => {
+    return request({
+      url: `/spec/update/${id}`,
+      method: 'post',
+      data
+    })
+  },
   /**
    * 获取分类目录树
    */

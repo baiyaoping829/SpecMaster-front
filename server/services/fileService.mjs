@@ -80,6 +80,57 @@ export const createFileService = ({ dbManager, cache, minio, config }) => {
     return row
   }
 
-  return { list, uploadMetadata }
+  const detail = async ({ dialect, id }) => {
+    const key = detailKey(id)
+    return cache.getOrSet({
+      key,
+      ttlSeconds: 60,
+      lockTtlMs: 1500,
+      loader: async () => {
+        const db = dbManager.getDb(dialect)
+        const row = await db
+          .selectFrom('file_objects')
+          .selectAll()
+          .where('id', '=', String(id))
+          .where('deleted_at', 'is', null)
+          .executeTakeFirst()
+        return row || null
+      }
+    })
+  }
+
+  const presignGetUrl = async ({ dialect, id }) => {
+    if (!minio.s3) return null
+    const row = await detail({ dialect, id })
+    if (!row) return null
+    const url = await import('../storage/minio.mjs').then((m) =>
+      m.presignGetObjectUrl({
+        s3: minio.s3,
+        bucket: row.bucket,
+        objectKey: row.object_key,
+        expiresSeconds: config.minio.presignExpiresSeconds,
+        publicBaseUrl: config.minio.publicBaseUrl
+      })
+    )
+    return { url, meta: row }
+  }
+
+  const getContentStream = async ({ dialect, id }) => {
+    if (!minio.s3) return null
+    const row = await detail({ dialect, id })
+    if (!row) return null
+    let stream = null
+    try {
+      stream = await import('../storage/minio.mjs').then((m) =>
+        m.getObjectStream({ s3: minio.s3, bucket: row.bucket, objectKey: row.object_key })
+      )
+    } catch {
+      stream = null
+    }
+    if (!stream) return null
+    return { stream, meta: row }
+  }
+
+  return { list, uploadMetadata, detail, presignGetUrl, getContentStream }
 }
 

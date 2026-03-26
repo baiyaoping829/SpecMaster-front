@@ -88,11 +88,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { specApi } from '../api/spec'
 
 // 响应式数据
 const route = useRoute()
 const editForm = reactive({
   id: '',
+  version: 0,
   name: '',
   code: '',
   type: '',
@@ -107,59 +109,39 @@ const isAutoCorrecting = ref(false)
 const isSubmitting = ref(false)
 const correctionResult = ref<any[]>([])
 
-// 模拟规范数据
-const mockSpecs = [
-  {
-    id: '1',
-    name: '建筑设计防火规范',
-    code: 'GB 50016-2014',
-    type: 'GB',
-    level: '1',
-    status: 1,
-    implementationDate: '2015-05-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于新建、扩建和改建的建筑设计防火。',
-    keywords: '建筑,防火,设计'
-  },
-  {
-    id: '2',
-    name: '混凝土结构设计规范',
-    code: 'GB 50010-2010',
-    type: 'GB',
-    level: '1',
-    status: 1,
-    implementationDate: '2011-07-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于房屋和一般构筑物的混凝土结构设计。',
-    keywords: '混凝土,结构,设计'
-  },
-  {
-    id: '3',
-    name: '建筑抗震设计规范',
-    code: 'GB 50011-2010',
-    type: 'GB',
-    level: '1',
-    status: 1,
-    implementationDate: '2010-12-01',
-    compilationUnit: '中华人民共和国住房和城乡建设部',
-    description: '本规范适用于抗震设防烈度为6度至9度地区的建筑抗震设计。',
-    keywords: '建筑,抗震,设计'
-  }
-]
+const toFormDate = (value: any) => {
+  if (!value) return ''
+  const d = new Date(value)
+  return Number.isFinite(d.getTime()) ? d : String(value)
+}
 
-// 加载规范数据
-const loadSpecData = () => {
+const normalizeDate = (value: any) => {
+  if (!value) return null
+  if (value instanceof Date) return value.toISOString()
+  return String(value)
+}
+
+const loadSpecData = async () => {
   const specId = route.params.id as string
-  
-  // 模拟加载过程
-  setTimeout(() => {
-    const spec = mockSpecs.find(s => s.id === specId)
-    if (spec) {
-      Object.assign(editForm, spec)
-    } else {
-      ElMessage.error('未找到规范数据')
-    }
-  }, 500)
+  try {
+    const res = await specApi.getSpecDetail(specId)
+    const s = res.data
+    Object.assign(editForm, {
+      id: String(s?.id || specId),
+      version: Number(s?.version || 0),
+      name: String(s?.name || ''),
+      code: String(s?.code || ''),
+      type: String(s?.type || ''),
+      level: String(s?.level ?? ''),
+      status: Number(s?.status ?? 1),
+      implementationDate: toFormDate(s?.implementation_date || s?.implementationDate || ''),
+      compilationUnit: String(s?.compilation_unit || s?.compilationUnit || ''),
+      description: String(s?.description || ''),
+      keywords: String(s?.keywords || '')
+    })
+  } catch (e: any) {
+    ElMessage.error(e?.message || '未找到规范数据')
+  }
 }
 
 // 智能校正
@@ -231,7 +213,7 @@ const autoCorrect = () => {
 }
 
 // 保存修改
-const handleSubmit = () => {
+const handleSubmit = async () => {
   // 验证表单
   if (!editForm.name || !editForm.code || !editForm.type || !editForm.level || !editForm.status || !editForm.implementationDate || !editForm.compilationUnit) {
     ElMessage.warning('请填写所有必填项')
@@ -239,14 +221,32 @@ const handleSubmit = () => {
   }
   
   isSubmitting.value = true
-  
-  // 模拟提交过程
-  setTimeout(() => {
-    console.log('保存规范标准:', editForm)
+  try {
+    const id = String(editForm.id || route.params.id || '')
+    await specApi.updateSpec(id, {
+      version: Number(editForm.version || 0),
+      patch: {
+        name: editForm.name,
+        code: editForm.code,
+        type: editForm.type,
+        level: Number(editForm.level),
+        status: Number(editForm.status),
+        implementation_date: normalizeDate(editForm.implementationDate),
+        compilation_unit: editForm.compilationUnit,
+        description: editForm.description,
+        keywords: editForm.keywords
+      }
+    })
     ElMessage.success('保存成功')
-    // 关闭窗口
-    window.close()
-  }, 1500)
+    try {
+      window.close()
+    } catch {
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '保存失败')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 // 取消

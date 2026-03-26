@@ -71,6 +71,13 @@ export const presignGetObjectUrl = async ({ s3, bucket, objectKey, expiresSecond
   return getSignedUrl(s3, cmd, { expiresIn: expiresSeconds })
 }
 
+export const getObjectStream = async ({ s3, bucket, objectKey }) => {
+  if (!s3) throw new Error('minio disabled')
+  const cmd = new GetObjectCommand({ Bucket: bucket, Key: objectKey })
+  const res = await s3.send(cmd)
+  return res?.Body || null
+}
+
 export const buildObjectKey = ({ sha256, originalName }) => {
   const ext = extname(basename(originalName || '')).toLowerCase()
   return ext ? `${sha256}${ext}` : sha256
