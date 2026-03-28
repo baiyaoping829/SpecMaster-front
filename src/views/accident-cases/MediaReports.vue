@@ -212,6 +212,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useAccidentStore } from '../../store/modules/accident'
 
 // 事故案例数据 - 与事故管理子模块保持一致
 const accidents = ref([
@@ -336,6 +337,16 @@ const accidents = ref([
     name: '吉林长春某工厂爆炸事故'
   }
 ])
+
+const accidentStore = useAccidentStore()
+
+onMounted(() => {
+  accidentStore.fetchList(1, 200).then((list) => {
+    if (Array.isArray(list) && list.length) {
+      accidents.value = list.map((x) => ({ id: x.id, name: x.name }))
+    }
+  }).catch(() => {})
+})
 
 // 过滤后的事故案例
 const filteredAccidents = ref([...accidents.value])

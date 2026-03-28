@@ -91,7 +91,7 @@
               <div class="event-header">
                 <div class="event-info">
                   <el-input v-model="event.title" placeholder="环节标题" class="event-title-input" />
-                  <el-datetime-picker v-model="event.time" type="datetime" placeholder="选择时间" class="event-time-input" />
+                  <el-date-picker v-model="event.time" type="datetime" placeholder="选择时间" class="event-time-input" />
                   <el-checkbox v-model="event.isMajor" class="event-major-checkbox">重大节点</el-checkbox>
                 </div>
                 <div class="event-actions">
@@ -129,7 +129,7 @@
                   <div class="sub-event-header">
                     <div class="sub-event-info">
                       <el-input v-model="subEvent.title" placeholder="子环节标题" class="sub-event-title-input" />
-                      <el-datetime-picker v-model="subEvent.time" type="datetime" placeholder="选择时间" class="sub-event-time-input" />
+                      <el-date-picker v-model="subEvent.time" type="datetime" placeholder="选择时间" class="sub-event-time-input" />
                     </div>
                     <div class="sub-event-actions">
                       <el-select v-model="subEvent.type" placeholder="类型" class="sub-event-type-select">
@@ -213,7 +213,7 @@
       >
         <el-form :model="eventForm" label-width="80px">
           <el-form-item label="时间">
-            <el-datetime-picker v-model="eventForm.time" type="datetime" placeholder="选择时间" style="width: 100%;" />
+            <el-date-picker v-model="eventForm.time" type="datetime" placeholder="选择时间" style="width: 100%;" />
           </el-form-item>
           <el-form-item label="标题">
             <el-input v-model="eventForm.title" placeholder="请输入事件标题" />
@@ -509,6 +509,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfjsWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { ElMessage } from 'element-plus'
+import { useAccidentStore } from '../../store/modules/accident'
 
 // 设置PDF.js worker路径
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc
@@ -575,6 +576,16 @@ const accidents = ref([
     }
   }
 ])
+
+const accidentStore = useAccidentStore()
+
+onMounted(() => {
+  accidentStore.fetchList(1, 200).then((list) => {
+    if (Array.isArray(list) && list.length) {
+      accidents.value = list
+    }
+  }).catch(() => {})
+})
 
 // 选中的事故
 const selectedAccidentId = ref('AC001')

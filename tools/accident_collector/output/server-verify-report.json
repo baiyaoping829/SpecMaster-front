@@ -1,0 +1,57 @@
+{
+  "total": 10,
+  "passed": 10,
+  "failed": [],
+  "details": [
+    {
+      "file": "01.json",
+      "case_id": "1573f32c41974a04a8fdd0fb8757ea7f",
+      "attachments": 1
+    },
+    {
+      "file": "02.json",
+      "case_id": "1b2a1456834c45719da9733998434211",
+      "attachments": 1
+    },
+    {
+      "file": "03.json",
+      "case_id": "1750dfa853c540dd84524c20459ed4e3",
+      "attachments": 1
+    },
+    {
+      "file": "04.json",
+      "case_id": "ef1e33ff420642939b9562392f598729",
+      "attachments": 1
+    },
+    {
+      "file": "05.json",
+      "case_id": "1d5fe1487e0342ce9055d0ef3e10f1bd",
+      "attachments": 0
+    },
+    {
+      "file": "06.json",
+      "case_id": "3262a25b1dbe44c1b8e86247bd425aae",
+      "attachments": 0
+    },
+    {
+      "file": "07.json",
+      "case_id": "b7398beeda8d46bbaddd743febc039fd",
+      "attachments": 0
+    },
+    {
+      "file": "08.json",
+      "case_id": "d653cd47bb314fee9eec567d5b92ea0e",
+      "attachments": 0
+    },
+    {
+      "file": "09.json",
+      "case_id": "402ad2c12ca64409833b55ece438451f",
+      "attachments": 0
+    },
+    {
+      "file": "10.json",
+      "case_id": "904d4b7a8c5d4493b28b41d2dae78c6e",
+      "attachments": 0
+    }
+  ]
+}

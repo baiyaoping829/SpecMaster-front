@@ -29,6 +29,12 @@ coverage/
 perf/*.html
 perf/*.json
 
+# Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

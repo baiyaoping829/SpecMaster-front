@@ -18,6 +18,9 @@
           <el-option label="其他" value="其他" />
         </el-select>
         <el-button type="primary" style="margin-left: 12px;" @click="handleSearch">搜索</el-button>
+        <el-badge :value="externalCandidates.length" :hidden="externalCandidates.length === 0" style="margin-left: 12px;">
+          <el-button :loading="externalLoading" @click="openExternalDialog">外部补全</el-button>
+        </el-badge>
         <el-button type="success" style="margin-left: 12px;" @click="addAccident">添加事故案例</el-button>
       </div>
       <div style="display: flex; align-items: center;">
@@ -33,20 +36,102 @@
     
     <!-- 列表视图 -->
     <div v-if="viewMode === 'list'" style="max-height: 500px; overflow-y: auto;">
-      <el-table :data="pagedAccidents" style="width: 100%;" @selection-change="handleAccidentSelectionChange">
+      <el-table :data="pagedAccidents" style="width: 100%;" @selection-change="handleAccidentSelectionChange" @row-dblclick="previewReport">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="案例编号" width="100" />
-        <el-table-column prop="name" label="事故名称" min-width="200" />
-        <el-table-column prop="type" label="事故类型" width="120" />
-        <el-table-column prop="accidentDate" label="事故日期" width="120" />
-        <el-table-column prop="province" label="所属省份" width="120" />
-        <el-table-column prop="level" label="事故等级" width="100" />
-        <el-table-column prop="casualties" label="人员伤亡" width="100" />
-        <el-table-column label="操作" width="150">
+        <el-table-column prop="caseNo" width="140">
+          <template #header>
+            <el-tooltip content="案例编号为业务编号，仅用于统计与阅览，非数据库主键" placement="top">
+              <span>案例编号</span>
+            </el-tooltip>
+          </template>
           <template #default="scope">
-            <el-button size="small" @click="viewAccident(scope.row)">详情</el-button>
-            <el-button size="small" @click="editAccident(scope.row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteAccident(scope.row.id)">删除</el-button>
+            <div v-if="scope.row.__editing">
+              <el-tooltip content="不可修改" placement="top">
+                <el-input v-model="scope.row.__draft.caseNo" size="small" disabled />
+              </el-tooltip>
+              <div v-if="scope.row.__errors?.caseNo" class="field-error">{{ scope.row.__errors.caseNo }}</div>
+            </div>
+            <span v-else>{{ scope.row.caseNo }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="name" label="事故名称" min-width="200">
+          <template #default="scope">
+            <div v-if="scope.row.__editing">
+              <el-input v-model="scope.row.__draft.name" size="small" />
+              <div v-if="scope.row.__errors?.name" class="field-error">{{ scope.row.__errors.name }}</div>
+            </div>
+            <span v-else>{{ scope.row.name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="type" label="事故类型" width="120">
+          <template #default="scope">
+            <div v-if="scope.row.__editing">
+              <el-select v-model="scope.row.__draft.type" size="small" style="width: 100%;">
+                <el-option label="坍塌事故" value="坍塌事故" />
+                <el-option label="高处坠落" value="高处坠落" />
+                <el-option label="物体打击" value="物体打击" />
+                <el-option label="触电事故" value="触电事故" />
+                <el-option label="机械伤害" value="机械伤害" />
+                <el-option label="其他" value="其他" />
+              </el-select>
+              <div v-if="scope.row.__errors?.type" class="field-error">{{ scope.row.__errors.type }}</div>
+            </div>
+            <span v-else>{{ scope.row.type }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="accidentDate" label="事故日期" width="120">
+          <template #default="scope">
+            <div v-if="scope.row.__editing">
+              <el-date-picker v-model="scope.row.__draft.accidentDate" type="date" value-format="YYYY-MM-DD" size="small" style="width: 100%;" />
+              <div v-if="scope.row.__errors?.accidentDate" class="field-error">{{ scope.row.__errors.accidentDate }}</div>
+            </div>
+            <span v-else>{{ scope.row.accidentDate }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="province" label="所属省份" width="120">
+          <template #default="scope">
+            <div v-if="scope.row.__editing">
+              <el-input v-model="scope.row.__draft.province" size="small" />
+              <div v-if="scope.row.__errors?.province" class="field-error">{{ scope.row.__errors.province }}</div>
+            </div>
+            <span v-else>{{ scope.row.province }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="level" label="事故等级" width="100">
+          <template #default="scope">
+            <div v-if="scope.row.__editing">
+              <el-select v-model="scope.row.__draft.level" size="small" style="width: 100%;">
+                <el-option label="一般" value="一般" />
+                <el-option label="较大" value="较大" />
+                <el-option label="重大" value="重大" />
+                <el-option label="特别重大" value="特别重大" />
+              </el-select>
+              <div v-if="scope.row.__errors?.level" class="field-error">{{ scope.row.__errors.level }}</div>
+            </div>
+            <span v-else>{{ scope.row.level }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="casualties" label="人员伤亡" width="100">
+          <template #default="scope">
+            <div v-if="scope.row.__editing">
+              <el-input v-model="scope.row.__draft.casualties" size="small" />
+              <div v-if="scope.row.__errors?.casualties" class="field-error">{{ scope.row.__errors.casualties }}</div>
+            </div>
+            <span v-else>{{ scope.row.casualties }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="260">
+          <template #default="scope">
+            <template v-if="scope.row.__editing">
+              <el-button size="small" type="primary" @click="confirmInlineEdit(scope.row)">确认</el-button>
+              <el-button size="small" @click="cancelInlineEdit(scope.row)">取消</el-button>
+            </template>
+            <template v-else>
+              <el-button size="small" @click="viewAccident(scope.row)">详情</el-button>
+              <el-button size="small" type="success" @click="previewReport(scope.row)">报告预览</el-button>
+              <el-button size="small" @click="startInlineEdit(scope.row)">编辑</el-button>
+              <el-button size="small" type="danger" @click="deleteAccident(scope.row.id)">删除</el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -103,6 +188,9 @@
       width="800px"
     >
       <el-form :model="accidentForm" :rules="rules" ref="accidentFormRef" label-width="120px">
+        <el-form-item label="案例编号" prop="caseNo" required>
+          <el-input v-model="accidentForm.caseNo" placeholder="允许 1-50 位数字、字母、短横线、斜杠" />
+        </el-form-item>
         <el-form-item label="事故名称" prop="name" required>
           <el-input v-model="accidentForm.name" placeholder="请输入事故名称" />
         </el-form-item>
@@ -188,7 +276,8 @@
           <el-upload
             class="upload-demo"
             action="#"
-            :on-change="handleFileUpload"
+            :on-change="(file, fileList) => handleUploadChange('report', file, fileList)"
+            :on-remove="(file, fileList) => handleUploadRemove('report', file, fileList)"
             :auto-upload="false"
             :file-list="accidentForm.files.report"
             :limit="3"
@@ -206,7 +295,8 @@
           <el-upload
             class="upload-demo"
             action="#"
-            :on-change="handleFileUpload"
+            :on-change="(file, fileList) => handleUploadChange('reading', file, fileList)"
+            :on-remove="(file, fileList) => handleUploadRemove('reading', file, fileList)"
             :auto-upload="false"
             :file-list="accidentForm.files.reading"
             :limit="3"
@@ -224,7 +314,8 @@
           <el-upload
             class="upload-demo"
             action="#"
-            :on-change="handleFileUpload"
+            :on-change="(file, fileList) => handleUploadChange('media', file, fileList)"
+            :on-remove="(file, fileList) => handleUploadRemove('media', file, fileList)"
             :auto-upload="false"
             :file-list="accidentForm.files.media"
             :limit="5"
@@ -255,7 +346,7 @@
     >
       <div v-if="selectedAccident" class="accident-detail">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="案例编号">{{ selectedAccident.id }}</el-descriptions-item>
+          <el-descriptions-item label="案例编号">{{ selectedAccident.caseNo }}</el-descriptions-item>
           <el-descriptions-item label="事故名称">{{ selectedAccident.name }}</el-descriptions-item>
           <el-descriptions-item label="事故类型">{{ selectedAccident.type }}</el-descriptions-item>
           <el-descriptions-item label="事故日期">{{ selectedAccident.accidentDate }}</el-descriptions-item>
@@ -309,12 +400,86 @@
         </span>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="reportDialogVisible"
+      title="调查报告预览"
+      width="1000px"
+      destroy-on-close
+      :close-on-press-escape="true"
+    >
+      <div v-if="reportAccident" class="accident-detail">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="事故标题" :span="2">{{ reportAccident.name }}</el-descriptions-item>
+          <el-descriptions-item label="调查结论" :span="2">{{ reportAccident.report_conclusion || reportAccident.summary || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="责任认定" :span="2">{{ reportAccident.report_accountability || reportAccident.punishment || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="附件下载" :span="2">
+            <div v-if="reportAccident.files?.report?.length">
+              <div v-for="(file, index) in reportAccident.files.report" :key="index" style="margin-bottom: 8px;">
+                <el-link :href="file.url" target="_blank">{{ file.name }}</el-link>
+              </div>
+            </div>
+            <div v-else>无</div>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div style="margin-top: 12px;">
+          <iframe v-if="reportPreviewUrl && reportPreviewType === 'pdf'" :src="reportPreviewUrl" style="width: 100%; height: 70vh; border: 0;" />
+          <iframe v-else-if="reportPreviewUrl && reportPreviewType === 'html'" :src="reportPreviewUrl" style="width: 100%; height: 70vh; border: 0;" />
+          <div v-else-if="reportPreviewUrl && reportPreviewType === 'image'" style="text-align: center;">
+            <img :src="reportPreviewUrl" style="max-width: 100%; max-height: 70vh;" />
+          </div>
+          <div v-else style="padding: 24px; color: #888;">暂无可预览的报告附件</div>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="reportDialogVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="externalDialogVisible" title="外部案例补全确认" width="900px" :close-on-press-escape="true">
+      <div style="margin-bottom: 10px;">
+        <div style="color: #666;">检索关键词：{{ externalQuery || '（空）' }}</div>
+      </div>
+      <el-table :data="externalCandidates" style="width: 100%;" highlight-current-row @row-click="selectExternal">
+        <el-table-column prop="case_no" label="案例编号" width="160" />
+        <el-table-column prop="title" label="标题" min-width="220" />
+        <el-table-column prop="occurred_at" label="发生时间" width="120" />
+        <el-table-column prop="location" label="地点" width="140" />
+        <el-table-column prop="published_at" label="发布日期" width="120" />
+      </el-table>
+      <div v-if="externalSelected" style="margin-top: 12px;">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="事故概述">{{ externalSelected.overview || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="直接原因">{{ externalSelected.direct_cause || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="间接原因">{{ externalSelected.indirect_cause || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="整改措施">{{ externalSelected.rectification || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="案例来源 URL">
+            <a v-if="externalSelected.source_url" :href="externalSelected.source_url" target="_blank" rel="noreferrer">
+              {{ externalSelected.source_url }}
+            </a>
+            <span v-else>无</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="案例发布日期">{{ externalSelected.published_at || '无' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="externalDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="externalImporting" :disabled="!externalSelected" @click="confirmExternalImport">确认写入</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAccidentStore } from '../../store/modules/accident'
+import { accidentApi } from '../../api/accident'
 
 // 搜索和过滤
 const searchQuery = ref('')
@@ -328,6 +493,19 @@ const accidentFormRef = ref()
 // 详情对话框相关
 const detailDialogVisible = ref(false)
 const selectedAccident = ref(null)
+
+const reportDialogVisible = ref(false)
+const reportAccident = ref(null)
+const reportPreviewUrl = ref('')
+const reportPreviewType = ref('')
+
+const externalCandidates = ref([])
+const externalLoading = ref(false)
+const externalDialogVisible = ref(false)
+const externalSelected = ref(null)
+const externalQuery = ref('')
+const externalImporting = ref(false)
+let externalTimer = null
 
 // 视图模式
 const viewMode = ref('list')
@@ -344,6 +522,7 @@ const pagedAccidents = ref([])
 // 事故表单数据
 const accidentForm = reactive({
   id: '',
+  caseNo: '',
   name: '',
   summary: '',
   type: '',
@@ -370,6 +549,10 @@ const accidentForm = reactive({
 
 // 表单验证规则
 const rules = {
+  caseNo: [
+    { required: true, message: '请输入案例编号', trigger: 'blur' },
+    { pattern: /^[A-Za-z0-9/\\-]{1,50}$/, message: '仅允许数字、字母、短横线、斜杠，1-50位', trigger: 'blur' }
+  ],
   name: [{ required: true, message: '请输入事故名称', trigger: 'blur' }],
   type: [{ required: true, message: '请选择事故类型', trigger: 'change' }],
   accidentDate: [{ required: true, message: '请选择事故日期', trigger: 'change' }],
@@ -1140,6 +1323,88 @@ const accidents = ref([
   }
 ])
 
+const accidentStore = useAccidentStore()
+const editingVo = ref(null)
+
+onMounted(async () => {
+  try {
+    const list = await accidentStore.fetchList(1, 200)
+    if (Array.isArray(list) && list.length) {
+      accidents.value = list
+      updatePagedAccidents()
+    }
+  } catch {
+  }
+})
+
+const fetchExternalCandidates = async () => {
+  const q = `${searchQuery.value || ''} ${filterType.value || ''}`.trim()
+  externalQuery.value = q
+  if (!q) {
+    externalCandidates.value = []
+    externalSelected.value = null
+    return
+  }
+  externalLoading.value = true
+  try {
+    const res = await accidentApi.externalSearch({ q, limit: 8 })
+    const data = res.data || {}
+    externalCandidates.value = Array.isArray(data.items) ? data.items : []
+    externalSelected.value = externalCandidates.value[0] || null
+  } catch {
+    externalCandidates.value = []
+    externalSelected.value = null
+  } finally {
+    externalLoading.value = false
+  }
+}
+
+watch([searchQuery, filterType], () => {
+  if (externalTimer) clearTimeout(externalTimer)
+  externalTimer = setTimeout(() => {
+    fetchExternalCandidates()
+  }, 600)
+})
+
+const openExternalDialog = async () => {
+  if (!externalQuery.value) await fetchExternalCandidates()
+  if (!externalCandidates.value.length) {
+    ElMessage.info('暂无匹配外部案例')
+    return
+  }
+  externalDialogVisible.value = true
+  externalSelected.value = externalCandidates.value[0] || null
+}
+
+const selectExternal = (row) => {
+  externalSelected.value = row
+}
+
+const confirmExternalImport = async () => {
+  const selected = externalSelected.value
+  if (!selected) return
+  externalImporting.value = true
+  try {
+    const res = await accidentApi.externalImport({ unit_name: '外部导入', items: [selected] })
+    const data = res.data || {}
+    const inserted = Array.isArray(data.inserted) ? data.inserted : []
+    const skipped = Array.isArray(data.skipped_existing) ? data.skipped_existing : []
+    const errors = Array.isArray(data.errors) ? data.errors : []
+    if (inserted.length) ElMessage.success(`已写入 ${inserted.length} 条`)
+    if (skipped.length) ElMessage.info('已存在')
+    if (errors.length) ElMessage.error(`导入失败 ${errors.length} 条`)
+    externalDialogVisible.value = false
+    const list = await accidentStore.fetchList(1, 200)
+    if (Array.isArray(list)) {
+      accidents.value = list
+      currentPage.value = 1
+      updatePagedAccidents()
+    }
+  } finally {
+    externalImporting.value = false
+  }
+}
+
 // 过滤事故数据
 const filterAccidents = () => {
   let result = [...accidents.value]
@@ -1148,9 +1413,9 @@ const filterAccidents = () => {
   if (searchQuery.value) {
     const keyword = searchQuery.value.toLowerCase()
     result = result.filter(accident => 
-      accident.name.toLowerCase().includes(keyword) ||
-      accident.type.toLowerCase().includes(keyword) ||
-      accident.responsibleUnit.toLowerCase().includes(keyword)
+      String(accident.name || '').toLowerCase().includes(keyword) ||
+      String(accident.type || '').toLowerCase().includes(keyword) ||
+      String(accident.responsibleUnit || '').toLowerCase().includes(keyword)
     )
   }
   
@@ -1175,6 +1440,7 @@ const updatePagedAccidents = () => {
 const handleSearch = () => {
   currentPage.value = 1 // 重置页码
   updatePagedAccidents()
+  fetchExternalCandidates()
 }
 
 // 初始化分页数据
@@ -1212,10 +1478,11 @@ const batchDeleteAccidents = () => {
   ).then(() => {
     // 执行批量删除操作
     const idsToDelete = selectedAccidents.value.map((accident) => accident.id)
-    accidents.value = accidents.value.filter(accident => !idsToDelete.includes(accident.id))
-    selectedAccidents.value = []
-    updatePagedAccidents()
-    console.log('事故案例批量删除成功')
+    Promise.all(idsToDelete.map((id) => accidentStore.deleteAccident(String(id)))).then(() => {
+      accidents.value = [...accidentStore.accidents]
+      selectedAccidents.value = []
+      updatePagedAccidents()
+    })
   }).catch(() => {
     // 取消删除
     console.log('取消删除事故案例')
@@ -1225,9 +1492,11 @@ const batchDeleteAccidents = () => {
 // 添加事故案例
 const addAccident = () => {
   dialogTitle.value = '添加事故案例'
+  editingVo.value = null
   // 重置表单
   Object.assign(accidentForm, {
     id: '',
+    caseNo: '',
     name: '',
     summary: '',
     type: '',
@@ -1254,19 +1523,80 @@ const addAccident = () => {
   dialogVisible.value = true
 }
 
-// 编辑事故案例
-const editAccident = (accident) => {
-  dialogTitle.value = '编辑事故案例'
-  // 填充表单数据
-  Object.assign(accidentForm, {
-    ...accident,
-    files: accident.files || {
-      report: [],
-      reading: [],
-      media: []
+const startInlineEdit = (row) => {
+  pagedAccidents.value.forEach((r) => {
+    if (r.__editing && r !== row) {
+      r.__editing = false
     }
   })
-  dialogVisible.value = true
+  row.__editing = true
+  row.__errors = {}
+  row.__draft = {
+    id: row.id,
+    caseNo: row.caseNo,
+    name: row.name,
+    type: row.type,
+    accidentDate: row.accidentDate,
+    province: row.province,
+    level: row.level,
+    casualties: row.casualties,
+    summary: row.summary,
+    directCause: row.directCause,
+    indirectCause: row.indirectCause,
+    responsibleUnit: row.responsibleUnit,
+    punishment: row.punishment,
+    _vo: row._vo
+  }
+}
+
+const cancelInlineEdit = (row) => {
+  row.__editing = false
+  row.__errors = {}
+  row.__draft = null
+}
+
+const validateInlineDraft = (draft) => {
+  const errors = {}
+  if (!draft.caseNo || !/^[A-Za-z0-9\/\-]{1,50}$/.test(String(draft.caseNo))) {
+    errors.caseNo = '案例编号仅允许数字、字母、短横线、斜杠，1-50位'
+  }
+  if (!draft.name || !String(draft.name).trim()) errors.name = '事故名称必填'
+  if (!draft.type || !String(draft.type).trim()) errors.type = '事故类型必填'
+  if (!draft.accidentDate || !String(draft.accidentDate).trim()) errors.accidentDate = '事故日期必填'
+  if (!draft.province || !String(draft.province).trim()) errors.province = '所属省份必填'
+  if (!draft.level || !String(draft.level).trim()) errors.level = '事故等级必填'
+  if (draft.name && String(draft.name).length > 256) errors.name = '事故名称过长（>256）'
+  return errors
+}
+
+const confirmInlineEdit = async (row) => {
+  const draft = row.__draft || {}
+  const errors = validateInlineDraft(draft)
+  row.__errors = errors
+  if (Object.keys(errors).length) return
+
+  try {
+    await accidentStore.updateAccident({
+      ...row,
+      ...draft,
+      caseNo: row.caseNo,
+      _vo: row._vo
+    })
+    accidents.value = [...accidentStore.accidents]
+    updatePagedAccidents()
+  } catch (e) {
+    const msg = String(e?.msg || e?.message || '保存失败')
+    row.__errors = { ...(row.__errors || {}), caseNo: msg }
+    ElMessage.error(msg)
+  }
+}
+
+// 编辑事故案例（行内编辑模式）
+const editAccident = async (accident) => {
+  viewMode.value = 'list'
+  await nextTick()
+  const row = pagedAccidents.value.find((x) => x.id === accident.id) || accident
+  startInlineEdit(row)
 }
 
 // 删除事故案例
@@ -1281,12 +1611,10 @@ const deleteAccident = (id) => {
     }
   ).then(() => {
     // 执行删除操作
-    const index = accidents.value.findIndex(item => item.id === id)
-    if (index !== -1) {
-      accidents.value.splice(index, 1)
+    accidentStore.deleteAccident(String(id)).then(() => {
+      accidents.value = [...accidentStore.accidents]
       updatePagedAccidents()
-      console.log('事故案例删除成功:', id)
-    }
+    })
   }).catch(() => {
     // 取消删除
     console.log('取消删除事故案例:', id)
@@ -1294,9 +1622,88 @@ const deleteAccident = (id) => {
 }
 
 // 查看事故案例详情
-const viewAccident = (accident) => {
+const viewAccident = async (accident) => {
   selectedAccident.value = accident
   detailDialogVisible.value = true
+  const vo = accident?._vo
+  const keys = Array.isArray(vo?.attachment_keys) ? vo.attachment_keys : []
+  if (!keys.length) return
+  try {
+    const urls = await Promise.all(keys.map((k) => accidentStore.presignAttachment(String(vo.id), String(k)).catch(() => '')))
+    const files = keys.map((k, i) => ({
+      name: String(k).split('/').pop() || String(k),
+      url: urls[i] || '#',
+      key: k
+    }))
+    selectedAccident.value = {
+      ...accident,
+      files: { report: files, reading: [], media: [] }
+    }
+  } catch {
+  }
+}
+
+const guessPreviewType = (nameOrKey) => {
+  const s = String(nameOrKey || '').toLowerCase()
+  if (s.endsWith('.pdf')) return 'pdf'
+  if (s.endsWith('.html') || s.endsWith('.htm')) return 'html'
+  if (s.endsWith('.png') || s.endsWith('.jpg') || s.endsWith('.jpeg') || s.endsWith('.gif') || s.endsWith('.webp')) return 'image'
+  return 'pdf'
+}
+
+const previewReport = async (accident) => {
+  reportAccident.value = accident
+  reportPreviewUrl.value = ''
+  reportPreviewType.value = ''
+  reportDialogVisible.value = true
+
+  const vo = accident?._vo
+  const keys = Array.isArray(vo?.attachment_keys) ? vo.attachment_keys : []
+  if (!keys.length) return
+  try {
+    const urls = await Promise.all(keys.map((k) => accidentStore.presignAttachment(String(vo.id), String(k)).catch(() => '')))
+    const files = keys.map((k, i) => ({
+      name: String(k).split('/').pop() || String(k),
+      url: urls[i] || '#',
+      key: k
+    }))
+    const first = files[0]
+    reportAccident.value = {
+      ...accident,
+      files: { report: files, reading: [], media: [] }
+    }
+    reportPreviewUrl.value = first?.url || ''
+    reportPreviewType.value = guessPreviewType(first?.name || first?.key || '')
+  } catch {
+  }
+}
+
+const handleUploadChange = (category, _file, fileList) => {
+  if (!accidentForm.files?.[category]) return
+  accidentForm.files[category] = fileList
+}
+
+const handleUploadRemove = (category, file, fileList) => {
+  accidentForm.files[category] = fileList
+  const vo = editingVo.value
+  const caseId = String(accidentForm.id || vo?.id || '')
+  const key = String(file?.key || '')
+  if (caseId && key) {
+    accidentStore.deleteAttachment(caseId, key).catch(() => {})
+  }
+}
+
+const collectNewFiles = () => {
+  const groups = ['report', 'reading', 'media']
+  const files = []
+  for (const g of groups) {
+    const list = accidentForm.files?.[g] || []
+    for (const item of list) {
+      const raw = item?.raw
+      if (raw && !item?.key) files.push(raw)
+    }
+  }
+  return files
 }
 
 // 提交表单
@@ -1307,25 +1714,27 @@ const submitForm = async () => {
     await accidentFormRef.value.validate()
     
     if (accidentForm.id) {
-      // 编辑操作：更新现有事故案例
-      const index = accidents.value.findIndex(item => item.id === accidentForm.id)
-      if (index !== -1) {
-        accidents.value[index] = { ...accidentForm }
-        console.log('事故案例编辑成功:', accidentForm)
+      const pending = collectNewFiles()
+      if (pending.length) {
+        await accidentStore.uploadAttachments(String(accidentForm.id), pending)
+        const refreshed = await accidentStore.refreshCase(String(accidentForm.id))
+        editingVo.value = refreshed?._vo || editingVo.value
       }
+      await accidentStore.updateAccident({ ...accidentForm, _vo: editingVo.value })
+      accidents.value = [...accidentStore.accidents]
     } else {
-      // 添加操作：创建新事故案例
-      const newId = 'AC' + String(accidents.value.length + 1).padStart(3, '0')
-      const newAccident = {
-        ...accidentForm,
-        id: newId
+      const pending = collectNewFiles()
+      const created = await accidentStore.createAccident({ ...accidentForm })
+      const createdId = String(created?._vo?.id || created?.id || '')
+      if (createdId && pending.length) {
+        await accidentStore.uploadAttachments(createdId, pending)
       }
-      accidents.value.push(newAccident)
-      console.log('事故案例添加成功:', newAccident)
+      accidents.value = [...accidentStore.accidents]
     }
     
     dialogVisible.value = false
     updatePagedAccidents()
+    ElMessage.success('保存成功')
   } catch (error) {
     console.log('表单验证失败:', error)
   }
@@ -1341,6 +1750,9 @@ const intelligentFillAccident = async () => {
     // 实际项目中这里会调用API
     setTimeout(() => {
       // 模拟填充结果
+      if (!accidentForm.caseNo) {
+        accidentForm.caseNo = `AC-${Date.now()}`
+      }
       if (!accidentForm.summary) {
         accidentForm.summary = '事故概要信息'
       }
@@ -1356,12 +1768,6 @@ const intelligentFillAccident = async () => {
       console.log('智能填充完成')
     }, 1000)
   }
-}
-
-// 处理文件上传
-const handleFileUpload = (file, fileList) => {
-  // 实际项目中这里会处理文件上传逻辑
-  console.log('文件上传:', file)
 }
 
 // 获取事故等级样式
@@ -1404,6 +1810,13 @@ const getLevelClass = (level) => {
   
   .accident-detail {
     margin-top: 24px;
+  }
+
+  .field-error {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #f56c6c;
+    line-height: 1.2;
   }
   
   .card-container {

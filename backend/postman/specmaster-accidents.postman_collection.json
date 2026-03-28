@@ -1,0 +1,60 @@
+{
+  "info": {
+    "name": "specmaster accidents",
+    "_postman_id": "b5c5b5d0-1d08-4a8d-9c6d-8b0b4d5a7b5a",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/v1/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v1", "health"]
+        }
+      }
+    },
+    {
+      "name": "Create case",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"示例事故\",\n  \"content\": \"{}\",\n  \"attachment_keys\": []\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v1/accidents/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v1", "accidents", ""]
+        }
+      }
+    },
+    {
+      "name": "List cases",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/v1/accidents/?page=1&size=20",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v1", "accidents", ""],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "size", "value": "20" }
+          ]
+        }
+      }
+    }
+  ]
+}
+

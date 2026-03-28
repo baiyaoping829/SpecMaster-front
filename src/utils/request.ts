@@ -32,8 +32,9 @@ request.interceptors.response.use(
     const silent = Boolean((response.config as any)?.silent)
     const res = response.data
     if (res && typeof res === 'object' && 'code' in res) {
-      if ((res as any).code !== 200) {
-        if (!silent) ElMessage.error((res as any).message || '请求失败')
+      const code = Number((res as any).code)
+      if (code !== 200 && code !== 201) {
+        if (!silent) ElMessage.error((res as any).msg || (res as any).message || '请求失败')
         return Promise.reject(res)
       }
       return res
