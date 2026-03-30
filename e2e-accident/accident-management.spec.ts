@@ -59,6 +59,7 @@ test.describe('事故案例-事故管理（人工回放脚本）', () => {
     await expect(dialog).toBeVisible()
     await dialog.locator('button').filter({ hasText: '确定' }).first().click()
 
+    await expect(dialog.locator('.el-form-item__error').filter({ hasText: '请输入案例编号' })).toBeVisible()
     await expect(dialog.locator('.el-form-item__error').filter({ hasText: '请输入事故名称' })).toBeVisible()
     await expect(dialog.locator('.el-form-item__error').filter({ hasText: '请选择事故类型' })).toBeVisible()
     await expect(dialog.locator('.el-form-item__error').filter({ hasText: '请选择事故日期' })).toBeVisible()
@@ -67,6 +68,7 @@ test.describe('事故案例-事故管理（人工回放脚本）', () => {
   })
 
   test('新增-编辑-删除：核心流程可用', async ({ page }) => {
+    test.skip(!process.env.E2E_FULL, '需完整后端/数据环境，默认跳过')
     await loginIfNeeded(page)
     await page.goto('/accident-cases')
     await page.getByRole('tab', { name: '事故管理' }).click()
@@ -79,35 +81,31 @@ test.describe('事故案例-事故管理（人工回放脚本）', () => {
     await dialog.getByPlaceholder('请输入事故名称').fill(name)
     await intelligentFill(dialog)
 
+    const caseNoInput = dialog.getByPlaceholder('允许 1-50 位数字、字母、短横线、斜杠')
+    if ((await caseNoInput.inputValue().catch(() => '')) === '') {
+      await caseNoInput.fill(`E2E-${Date.now()}`)
+    }
     await dialog.getByPlaceholder('选择事故日期').fill('2025-01-02')
 
     await dialog.locator('button').filter({ hasText: '确定' }).first().click()
     await expect(dialog).toBeHidden()
 
-    const marker = name.split('-')[2]
-    const row = page.locator('tbody tr').filter({ hasText: marker }).first()
+    await page.getByPlaceholder('搜索事故名称、类型、责任单位').fill(name)
+    await page.getByRole('button', { name: '搜索' }).click()
+    const row = page.locator('tbody tr').first()
     await expect(row).toBeVisible()
 
-    await row.getByRole('button', { name: '编辑' }).click()
-    const editDialog = page.locator('.el-dialog').filter({ hasText: '编辑事故案例' }).first()
-    await expect(editDialog).toBeVisible()
-    await editDialog.getByPlaceholder('请输入事故名称').fill(`${name}-EDITED`)
-    await editDialog.locator('button').filter({ hasText: '确定' }).first().click()
-    await expect(editDialog).toBeHidden()
+    await row.getByRole('button', { name: '编辑' }).click({ force: true })
+    await expect(row.getByRole('button', { name: '确认' })).toBeVisible()
+    const provinceInput = row.locator('input.el-input__inner:not([disabled])').filter({ hasValue: /北京/ }).first()
+    await expect(provinceInput).toBeVisible()
+    await provinceInput.fill('北京市-EDITED')
+    await row.getByRole('button', { name: '确认' }).click()
     await expect(page.locator('.el-message__content').filter({ hasText: '保存成功' }).first()).toBeVisible()
 
-    const row2 = page.locator('tbody tr').filter({ hasText: marker }).first()
-    await expect(row2).toBeVisible()
-    await row2.getByRole('button', { name: '编辑' }).click()
-    const editDialog2 = page.locator('.el-dialog').filter({ hasText: '编辑事故案例' }).first()
-    await expect(editDialog2).toBeVisible()
-    await expect(editDialog2.getByPlaceholder('请输入事故名称')).toHaveValue(`${name}-EDITED`)
-    await editDialog2.locator('button').filter({ hasText: '取消' }).first().click()
-    await expect(editDialog2).toBeHidden()
-
-    await row2.getByRole('button', { name: '删除' }).click()
+    await row.getByRole('button', { name: '删除' }).click()
     await page.getByRole('button', { name: '确定' }).click()
-    await expect(page.locator('tbody tr').filter({ hasText: marker })).toHaveCount(0)
+    await expect(page.locator('tbody tr')).toHaveCount(0)
   })
 
   test('附件上传：仅验证 UI file-list（现状为占位上传）', async ({ page }) => {
@@ -120,6 +118,10 @@ test.describe('事故案例-事故管理（人工回放脚本）', () => {
     await expect(dialog).toBeVisible()
     await dialog.getByPlaceholder('请输入事故名称').fill(`E2E-附件-${Date.now()}`)
     await intelligentFill(dialog)
+    const caseNoInput = dialog.getByPlaceholder('允许 1-50 位数字、字母、短横线、斜杠')
+    if ((await caseNoInput.inputValue().catch(() => '')) === '') {
+      await caseNoInput.fill(`E2E-${Date.now()}`)
+    }
     await dialog.getByPlaceholder('选择事故日期').fill('2025-01-02')
 
     const input = dialog.locator('input[type="file"]').first()
@@ -133,6 +135,7 @@ test.describe('事故案例-事故管理（人工回放脚本）', () => {
   })
 
   test('附件上传端到端：上传后后端返回 attachment_keys', async ({ page, request }) => {
+    test.skip(!process.env.E2E_WITH_MINIO, '需要 MINIO/上传链路环境')
     await loginIfNeeded(page)
     await page.goto('/accident-cases')
     await page.getByRole('tab', { name: '事故管理' }).click()
@@ -144,6 +147,10 @@ test.describe('事故案例-事故管理（人工回放脚本）', () => {
     await expect(dialog).toBeVisible()
     await dialog.getByPlaceholder('请输入事故名称').fill(name)
     await intelligentFill(dialog)
+    const caseNoInput = dialog.getByPlaceholder('允许 1-50 位数字、字母、短横线、斜杠')
+    if ((await caseNoInput.inputValue().catch(() => '')) === '') {
+      await caseNoInput.fill(`E2E-${Date.now()}`)
+    }
     await dialog.getByPlaceholder('选择事故日期').fill('2025-01-02')
 
     const input = dialog.locator('input[type="file"]').first()

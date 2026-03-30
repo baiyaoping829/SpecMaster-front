@@ -19,6 +19,7 @@ const intelligentFill = async (dialog) => {
 
 test.describe('事故案例采集数据导入（前端交互模拟）', () => {
   test('批量导入采集 JSON（含PDF附件上传）', async ({ page }) => {
+    test.skip(!process.env.E2E_WITH_MINIO, '需要 MINIO/上传链路环境')
     const dir = process.env.E2E_IMPORT_DIR || 'tools/accident_collector/output/frontend'
     const limit = Number(process.env.E2E_IMPORT_LIMIT || '10')
     const absDir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir)
@@ -44,6 +45,10 @@ test.describe('事故案例采集数据导入（前端交互模拟）', () => {
 
       await dialog.getByPlaceholder('请输入事故名称').fill(String(payload.title || ''))
       await intelligentFill(dialog)
+      const caseNoInput = dialog.getByPlaceholder('允许 1-50 位数字、字母、短横线、斜杠')
+      if ((await caseNoInput.inputValue().catch(() => '')) === '') {
+        await caseNoInput.fill(`E2E-${Date.now()}`)
+      }
       await dialog.getByPlaceholder('选择事故日期').fill(String(payload?.content?.date || '2020-01-01'))
 
       const atts = payload.attachments || []
@@ -59,4 +64,3 @@ test.describe('事故案例采集数据导入（前端交互模拟）', () => {
     }
   })
 })
-

@@ -6,6 +6,9 @@
       <el-tab-pane label="事故管理" name="accident-management">
         <AccidentManagement />
       </el-tab-pane>
+      <el-tab-pane label="事故爬取" name="accident-crawler">
+        <AccidentCrawlerAdmin />
+      </el-tab-pane>
       <el-tab-pane label="事故分析" name="accident-analysis">
         <AccidentAnalysis />
       </el-tab-pane>
@@ -19,6 +22,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AccidentManagement from './accident-cases/AccidentManagement.vue'
+import AccidentCrawlerAdmin from './accident-cases/AccidentCrawlerAdmin.vue'
 import AccidentAnalysis from './accident-cases/AccidentAnalysis.vue'
 import MediaReports from './accident-cases/MediaReports.vue'
 

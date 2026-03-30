@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     minio_presign_expires_seconds: int = 300
 
     api_prefix: str = "/api/v1"
+    attachments_dir: str = "/data/attachments"
+    attachment_low_disk_pct: int = 10
 
     @property
     def sqlalchemy_url(self) -> str:

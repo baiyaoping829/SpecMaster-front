@@ -187,6 +187,9 @@
       :title="dialogTitle"
       width="800px"
     >
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+        <el-button @click="openCrawlerPicker">案例选</el-button>
+      </div>
       <el-form :model="accidentForm" :rules="rules" ref="accidentFormRef" label-width="120px">
         <el-form-item label="案例编号" prop="caseNo" required>
           <el-input v-model="accidentForm.caseNo" placeholder="允许 1-50 位数字、字母、短横线、斜杠" />
@@ -439,6 +442,70 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="crawlerPickerVisible" title="案例选（事故爬取库）" width="1000px" :close-on-press-escape="true">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom: 12px;">
+        <el-input v-model="crawlerFilters.q" placeholder="关键词/地点" style="width: 240px;" />
+        <el-select v-model="crawlerFilters.accident_type" placeholder="事故类型" style="width: 160px;">
+          <el-option label="全部" value="" />
+          <el-option label="坍塌事故" value="坍塌事故" />
+          <el-option label="火灾事故" value="火灾事故" />
+          <el-option label="爆炸事故" value="爆炸事故" />
+          <el-option label="触电事故" value="触电事故" />
+          <el-option label="其他" value="其他" />
+        </el-select>
+        <el-select v-model="crawlerFilters.casualties_level" placeholder="伤亡等级" style="width: 140px;">
+          <el-option label="不限" value="" />
+          <el-option label="死亡" value="死亡" />
+          <el-option label="受伤" value="受伤" />
+          <el-option label="重伤" value="重伤" />
+        </el-select>
+        <el-date-picker
+          v-model="crawlerDateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          style="width: 280px;"
+        />
+        <el-button type="primary" :loading="crawlerLoading" @click="loadCrawlerReports">检索</el-button>
+      </div>
+
+      <el-table :data="crawlerReports" style="width: 100%;" @selection-change="handleCrawlerSelection">
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="occurred_at" label="事故时间" width="120" />
+        <el-table-column prop="location" label="地点" width="160" />
+        <el-table-column prop="accident_type" label="类型" width="120" />
+        <el-table-column prop="casualties" label="伤亡" width="140" />
+        <el-table-column prop="report_no" label="报告编号" width="160" />
+        <el-table-column prop="title" label="标题" min-width="260" />
+        <el-table-column label="链接" width="120">
+          <template #default="scope">
+            <el-link v-if="scope.row.report_url" :href="scope.row.report_url" target="_blank">报告</el-link>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
+        <el-pagination
+          v-model:current-page="crawlerPage"
+          v-model:page-size="crawlerSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="crawlerTotal"
+          @size-change="loadCrawlerReports"
+          @current-change="loadCrawlerReports"
+        />
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="crawlerPickerVisible = false">取消</el-button>
+          <el-button type="primary" :disabled="crawlerSelected.length === 0" @click="applyCrawlerFill">填充到表单</el-button>
+          <el-button type="success" :disabled="crawlerSelected.length === 0" @click="batchCreateFromCrawler">批量创建</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="externalDialogVisible" title="外部案例补全确认" width="900px" :close-on-press-escape="true">
       <div style="margin-bottom: 10px;">
         <div style="color: #666;">检索关键词：{{ externalQuery || '（空）' }}</div>
@@ -480,6 +547,7 @@ import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAccidentStore } from '../../store/modules/accident'
 import { accidentApi } from '../../api/accident'
+import { crawlerApi } from '../../api/crawler'
 
 // 搜索和过滤
 const searchQuery = ref('')
@@ -498,6 +566,16 @@ const reportDialogVisible = ref(false)
 const reportAccident = ref(null)
 const reportPreviewUrl = ref('')
 const reportPreviewType = ref('')
+
+const crawlerPickerVisible = ref(false)
+const crawlerLoading = ref(false)
+const crawlerReports = ref([])
+const crawlerSelected = ref([])
+const crawlerFilters = reactive({ q: '', accident_type: '', casualties_level: '' })
+const crawlerDateRange = ref(null)
+const crawlerPage = ref(1)
+const crawlerSize = ref(20)
+const crawlerTotal = ref(0)
 
 const externalCandidates = ref([])
 const externalLoading = ref(false)
@@ -1403,6 +1481,115 @@ const confirmExternalImport = async () => {
   } finally {
     externalImporting.value = false
   }
+}
+
+const openCrawlerPicker = async () => {
+  crawlerPickerVisible.value = true
+  crawlerPage.value = 1
+  await loadCrawlerReports()
+}
+
+const loadCrawlerReports = async () => {
+  crawlerLoading.value = true
+  try {
+    const start = crawlerDateRange.value?.[0] ? new Date(crawlerDateRange.value[0]).toISOString().slice(0, 10) : ''
+    const end = crawlerDateRange.value?.[1] ? new Date(crawlerDateRange.value[1]).toISOString().slice(0, 10) : ''
+    const res = await crawlerApi.listReports({
+      q: String(crawlerFilters.q || '').trim(),
+      accident_type: String(crawlerFilters.accident_type || ''),
+      casualties_level: String(crawlerFilters.casualties_level || ''),
+      start_date: start,
+      end_date: end,
+      page: crawlerPage.value,
+      size: crawlerSize.value,
+      sort_by: 'created_at',
+      sort_order: 'desc'
+    })
+    const data = res.data || {}
+    crawlerReports.value = Array.isArray(data.items) ? data.items : []
+    crawlerTotal.value = Number(data.total || 0)
+  } finally {
+    crawlerLoading.value = false
+  }
+}
+
+const handleCrawlerSelection = (rows) => {
+  crawlerSelected.value = Array.isArray(rows) ? rows : []
+}
+
+const applyCrawlerFill = () => {
+  const row = crawlerSelected.value?.[0]
+  if (!row) return
+  const occurredAt = String(row.occurred_at || '').slice(0, 10)
+  const year = occurredAt && occurredAt.length >= 4 ? occurredAt.slice(0, 4) : String(new Date().getFullYear())
+  const fp = String(row.fingerprint || '').slice(0, 12) || String(Date.now())
+  if (!accidentForm.caseNo) accidentForm.caseNo = `CRAWL-${year}-${fp}`
+  accidentForm.name = String(row.title || accidentForm.name || '')
+  accidentForm.summary = String(row.overview || accidentForm.summary || '')
+  accidentForm.type = String(row.accident_type || accidentForm.type || '')
+  accidentForm.directCause = String(row.cause_overview || accidentForm.directCause || '')
+  accidentForm.responsibleUnit = String(row.responsible_party || accidentForm.responsibleUnit || '外部爬取')
+  if (occurredAt) accidentForm.accidentDate = occurredAt
+  if (!accidentForm.province) accidentForm.province = String(row.location || '').slice(0, 12)
+  if (!accidentForm.casualties) accidentForm.casualties = String(row.casualties || '')
+  const media = accidentForm.files?.media || []
+  if (row.source_url) media.push({ name: '来源链接', url: String(row.source_url) })
+  if (row.report_url) media.push({ name: '报告链接', url: String(row.report_url) })
+  accidentForm.files.media = media
+  crawlerPickerVisible.value = false
+  ElMessage.success('已填充到表单')
+}
+
+const batchCreateFromCrawler = async () => {
+  const rows = Array.isArray(crawlerSelected.value) ? crawlerSelected.value : []
+  if (!rows.length) return
+  await ElMessageBox.confirm(`确认批量创建 ${rows.length} 条事故案例？`, '提示', { type: 'warning' })
+  let okCount = 0
+  let existsCount = 0
+  let failCount = 0
+  for (const row of rows) {
+    const occurredAt = String(row.occurred_at || '').slice(0, 10)
+    const year = occurredAt && occurredAt.length >= 4 ? occurredAt.slice(0, 4) : '0000'
+    const fp = String(row.fingerprint || '').slice(0, 12) || String(Date.now())
+    const caseNo = `CRAWL-${year}-${fp}`
+    const payload = {
+      caseNo,
+      name: String(row.title || ''),
+      summary: String(row.overview || ''),
+      type: String(row.accident_type || ''),
+      directCause: String(row.cause_overview || ''),
+      responsibleUnit: String(row.responsible_party || '外部爬取'),
+      accidentDate: occurredAt,
+      province: String(row.location || '').slice(0, 12),
+      casualties: String(row.casualties || ''),
+      files: {
+        report: [],
+        reading: [],
+        media: [
+          ...(row.source_url ? [{ name: '来源链接', url: String(row.source_url) }] : []),
+          ...(row.report_url ? [{ name: '报告链接', url: String(row.report_url) }] : [])
+        ]
+      }
+    }
+    try {
+      await accidentStore.createAccident(payload)
+      okCount += 1
+    } catch (e) {
+      const msg = String(e?.msg || e?.message || '')
+      if (msg.includes('案例编号已存在')) existsCount += 1
+      else failCount += 1
+    }
+  }
+  const list = await accidentStore.fetchList(1, 200).catch(() => null)
+  if (Array.isArray(list)) {
+    accidents.value = list
+    currentPage.value = 1
+    updatePagedAccidents()
+  }
+  crawlerPickerVisible.value = false
+  if (okCount) ElMessage.success(`已创建 ${okCount} 条`)
+  if (existsCount) ElMessage.info(`已存在 ${existsCount} 条`)
+  if (failCount) ElMessage.error(`失败 ${failCount} 条`)
 }
 
 // 过滤事故数据

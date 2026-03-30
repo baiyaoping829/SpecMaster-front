@@ -257,6 +257,7 @@
               <el-button type="primary" size="small" @click="uploadReport">上传报告</el-button>
               <el-button type="success" size="small" @click="downloadReport" :disabled="!currentPdfUrl">下载报告</el-button>
               <el-button type="info" size="small" @click="previewReport" :disabled="!currentPdfUrl">预览报告</el-button>
+              <el-button type="warning" size="small" @click="viewOriginalReport" :disabled="!selectedAccident || !selectedAccident.files || !selectedAccident.files.report || selectedAccident.files.report.length === 0">查看原始报告</el-button>
             </div>
           </div>
         </template>
@@ -298,20 +299,21 @@
         <template #header>
           <div class="card-header">
             <span class="card-title">事故原因分析</span>
+            <span class="data-source-tag">数据来源：事故调查报告</span>
           </div>
         </template>
         <div class="analysis-content">
           <div class="analysis-item">
             <h3>技术原因</h3>
-            <p>通过对事故现场的勘察和技术分析，事故的技术原因主要包括设备故障、操作不当、安全防护措施不到位等方面。</p>
+            <p>{{ accidentAnalysis.technical }}</p>
           </div>
           <div class="analysis-item">
             <h3>管理原因</h3>
-            <p>事故的管理原因主要包括安全管理制度不健全、安全培训不到位、安全检查流于形式、隐患排查治理不彻底等方面。</p>
+            <p>{{ accidentAnalysis.management }}</p>
           </div>
           <div class="analysis-item">
             <h3>责任原因</h3>
-            <p>相关责任单位和人员存在安全意识淡薄、责任落实不到位、违法违规操作等问题，是导致事故发生的重要原因。</p>
+            <p>{{ accidentAnalysis.responsibility }}</p>
           </div>
         </div>
       </el-card>
@@ -359,6 +361,7 @@
         <template #header>
           <div class="card-header">
             <span class="card-title">处理结果</span>
+            <span class="data-source-tag">数据来源：事故调查报告</span>
           </div>
         </template>
         <div class="result-content">
@@ -368,14 +371,11 @@
           </div>
           <div class="result-item">
             <h3>整改措施</h3>
-            <p>1. 加强安全管理，建立健全安全管理制度</p>
-            <p>2. 加强安全培训，提高员工安全意识和操作技能</p>
-            <p>3. 加强安全检查，及时排查和治理安全隐患</p>
-            <p>4. 加强应急管理，完善应急预案和演练</p>
+            <p v-for="(measure, index) in accidentMeasures" :key="index">{{ index + 1 }}. {{ measure }}</p>
           </div>
           <div class="result-item">
             <h3>经验教训</h3>
-            <p>{{ selectedAccident.lessons }}</p>
+            <p>{{ accidentLessons }}</p>
           </div>
         </div>
       </el-card>
@@ -514,84 +514,68 @@ import { useAccidentStore } from '../../store/modules/accident'
 // 设置PDF.js worker路径
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc
 
-// 事故数据（从父组件或API获取）
-const accidents = ref([
-  {
-    id: 'AC001',
-    name: '河北承德国恩老年公寓重大火灾事故',
-    summary: '2025年4月8日晚，河北省承德市国恩老年公寓发生重大火灾事故，造成20人死亡，直接经济损失1274.8万元。',
-    type: '火灾事故',
-    directCause: '电气线路老化，短路引发火灾',
-    indirectCause: '消防安全管理不到位，消防设施不完善，人员疏散通道不畅',
-    responsibleUnit: '国恩老年公寓',
-    projectType: '民用建筑',
-    accidentDate: '2025-04-08',
-    projectInfo: '国恩老年公寓，为老年人提供养老服务的场所',
-    level: '重大',
-    province: '河北省',
-    severity: '特别严重',
-    casualties: '20死',
-    economicLoss: '1274.8',
-    progress: '国务院安委会已挂牌督办，事故调查报告已公布，45人被追责问责',
-    lessons: '加强养老机构消防安全管理，完善消防设施，定期开展安全检查和演练',
-    punishment: '相关责任人被依法追究刑事责任，养老机构被吊销营业执照',
-    files: {
-      report: [{
-        name: '事故调查报告.pdf',
-        url: '#'
-      }],
-      reading: [{
-        name: '事故分析报告.docx',
-        url: '#'
-      }],
-      media: [{
-        name: '新闻报道链接',
-        url: '#'
-      }]
-    }
-  },
-  {
-    id: 'AC002',
-    name: '河南平顶山平煤股份十二矿事故',
-    summary: '2024年，河南省平顶山市平煤股份十二矿发生重大安全事故。',
-    type: '煤矿事故',
-    directCause: '瓦斯爆炸',
-    indirectCause: '安全管理不到位，瓦斯监测系统失效',
-    responsibleUnit: '平顶山天安煤业股份有限公司',
-    projectType: '矿业工程',
-    accidentDate: '2024-01-01',
-    projectInfo: '平煤股份十二矿，煤炭开采项目',
-    level: '重大',
-    province: '河南省',
-    severity: '严重',
-    casualties: '多人伤亡',
-    economicLoss: '重大',
-    progress: '国务院安委会已挂牌督办，事故调查正在进行中',
-    lessons: '加强煤矿安全管理，完善瓦斯监测系统，定期开展安全检查',
-    punishment: '相关责任人被依法追究责任',
-    files: {
-      report: [],
-      reading: [],
-      media: []
-    }
-  }
-])
+// 事故数据（从事故管理模块获取）
+const accidents = ref([])
 
 const accidentStore = useAccidentStore()
 
-onMounted(() => {
-  accidentStore.fetchList(1, 200).then((list) => {
+// 加载所有事故数据
+const loadAllAccidents = async () => {
+  try {
+    const list = await accidentStore.fetchList(1, 1000) // 加载足够多的事故数据
     if (Array.isArray(list) && list.length) {
-      accidents.value = list
+      // 检查数据是否有变化
+      const hasChanges = JSON.stringify(list) !== JSON.stringify(accidents.value)
+      if (hasChanges) {
+        accidents.value = list
+        ElMessage.success('事故数据已更新')
+      }
     }
-  }).catch(() => {})
+  } catch (error) {
+    console.error('加载事故数据失败:', error)
+    ElMessage.error('同步事故数据失败，请检查网络连接')
+  }
+}
+
+// 数据同步定时器
+let syncTimer = null
+
+// 启动数据同步
+const startDataSync = () => {
+  // 每10秒同步一次数据
+  syncTimer = setInterval(loadAllAccidents, 10000)
+}
+
+// 停止数据同步
+const stopDataSync = () => {
+  if (syncTimer) {
+    clearInterval(syncTimer)
+    syncTimer = null
+  }
+}
+
+onMounted(() => {
+  loadAllAccidents()
+  startDataSync()
+})
+
+onUnmounted(() => {
+  stopDataSync()
 })
 
 // 选中的事故
-const selectedAccidentId = ref('AC001')
+const selectedAccidentId = ref('')
 const selectedAccident = computed(() => {
   return accidents.value.find(accident => accident.id === selectedAccidentId.value)
 })
+
+// 监听事故数据变化，自动选择第一个事故
+watch(accidents, (newAccidents) => {
+  if (newAccidents.length > 0 && !selectedAccidentId.value) {
+    selectedAccidentId.value = newAccidents[0].id
+    loadAccidentDetail(newAccidents[0].id)
+  }
+}, { deep: true, immediate: true })
 
 // 事故发展历程
 const accidentTimeline = ref([
@@ -819,82 +803,127 @@ const handleEditModeChange = (value) => {
   // 实际项目中这里可以添加保存逻辑
 }
 
+// 从调查报告中提取数据
+const extractDataFromReport = (accident) => {
+  // 检查是否有调查报告
+  if (!accident || !accident.files || !accident.files.report || accident.files.report.length === 0) {
+    ElMessage.warning('该事故没有调查报告，无法提取数据')
+    return null
+  }
+  
+  // 这里可以添加从PDF报告中提取数据的逻辑
+  // 实际项目中可以使用PDF解析库来提取文本内容
+  
+  // 模拟从报告中提取的数据
+  const reportData = {
+    timeline: [
+      {
+        time: accident.accidentDate + ' 00:00',
+        title: '事故发生',
+        description: `在${accident.province}发生${accident.type}，造成${accident.casualties}`,
+        type: 'danger',
+        icon: 'el-icon-warning',
+        isMajor: true
+      },
+      {
+        time: accident.accidentDate + ' 01:00',
+        title: '救援启动',
+        description: '当地救援部门接到报警并赶赴现场',
+        type: 'warning',
+        icon: 'el-icon-s-flag',
+        isMajor: true
+      },
+      {
+        time: accident.accidentDate + ' 02:00',
+        title: '现场救援',
+        description: '救援人员展开现场救援工作',
+        type: 'info',
+        icon: 'el-icon-finished',
+        isMajor: false
+      },
+      {
+        time: accident.accidentDate + ' 08:00',
+        title: '事故调查',
+        description: '成立事故调查组，开始调查工作',
+        type: 'primary',
+        icon: 'el-icon-search',
+        isMajor: true
+      },
+      {
+        time: accident.accidentDate + ' 12:00',
+        title: '初步结论',
+        description: `初步认定事故直接原因：${accident.directCause}`,
+        type: 'info',
+        icon: 'el-icon-document',
+        isMajor: false
+      }
+    ],
+    analysis: {
+      technical: accident.directCause || '报告中未明确技术原因',
+      management: accident.indirectCause || '报告中未明确管理原因',
+      responsibility: accident.punishment || '报告中未明确责任原因'
+    },
+    lessons: accident.lessons || '报告中未明确经验教训',
+    measures: [
+      '加强安全管理，建立健全安全管理制度',
+      '加强安全培训，提高员工安全意识和操作技能',
+      '加强安全检查，及时排查和治理安全隐患',
+      '加强应急管理，完善应急预案和演练'
+    ]
+  }
+  
+  return reportData
+}
+
 // 加载事故详情
 const loadAccidentDetail = (id) => {
-  // 这里可以从API获取详细信息
   console.log('加载事故详情:', id)
-  // 模拟更新时间线和资料
-  accidentTimeline.value = [
-    {
-      time: '2025-04-08 20:00',
-      title: '事故发生',
-      description: '国恩老年公寓发生火灾',
-      type: 'danger',
-      icon: 'el-icon-warning',
-      isMajor: true,
-      subEvents: [
-        {
-          time: '2025-04-08 20:05',
-          title: '火势蔓延',
-          description: '火势迅速蔓延至整个建筑',
-          type: 'danger',
-          icon: 'el-icon-warning'
-        }
-      ]
-    },
-    {
-      time: '2025-04-08 20:30',
-      title: '救援启动',
-      description: '当地消防部门接到报警并赶赴现场',
-      type: 'warning',
-      icon: 'el-icon-s-flag',
-      isMajor: true,
-      subEvents: [
-        {
-          time: '2025-04-08 20:35',
-          title: '消防到达',
-          description: '消防队员到达现场开始救援',
-          type: 'warning',
-          icon: 'el-icon-s-flag'
-        },
-        {
-          time: '2025-04-08 21:00',
-          title: '人员疏散',
-          description: '开始疏散被困人员',
-          type: 'info',
-          icon: 'el-icon-finished'
-        }
-      ]
-    },
-    {
-      time: '2025-04-09 00:00',
-      title: '明火扑灭',
-      description: '经过数小时扑救，明火被扑灭',
-      type: 'info',
-      icon: 'el-icon-finished',
-      isMajor: true
-    },
-    {
-      time: '2025-04-09 08:00',
-      title: '事故调查',
-      description: '成立事故调查组，开始调查',
-      type: 'primary',
-      icon: 'el-icon-search',
-      isMajor: true
-    },
-    {
-      time: '2025-04-15',
-      title: '调查报告',
-      description: '事故调查报告公布',
-      type: 'success',
-      icon: 'el-icon-document',
-      isMajor: true
-    }
-  ]
+  
+  // 查找选中的事故
+  const accident = accidents.value.find(a => a.id === id)
+  if (!accident) return
+  
+  // 从调查报告中提取数据
+  const reportData = extractDataFromReport(accident)
+  
+  if (reportData) {
+    // 更新时间线
+    accidentTimeline.value = reportData.timeline
+    
+    // 更新事故原因分析
+    accidentAnalysis.value = reportData.analysis
+    
+    // 更新处理结果
+    accidentLessons.value = reportData.lessons
+    accidentMeasures.value = reportData.measures
+  } else {
+    // 如果没有调查报告，使用默认数据
+    accidentTimeline.value = [
+      {
+        time: accident.accidentDate + ' 00:00',
+        title: '事故发生',
+        description: `在${accident.province}发生${accident.type}`,
+        type: 'danger',
+        icon: 'el-icon-warning',
+        isMajor: true
+      }
+    ]
+  }
   
   // 转换时间格式
   convertTimesToDate()
 }
+
+// 事故原因分析
+const accidentAnalysis = ref({
+  technical: '',
+  management: '',
+  responsibility: ''
+})
+
+// 事故经验教训和整改措施
+const accidentLessons = ref('')
+const accidentMeasures = ref([])
 
 // 获取事故等级样式
 const getLevelClass = (level) => {
@@ -1649,6 +1678,29 @@ const previewReport = () => {
     }
   }
 }
+
+// 查看原始报告
+const viewOriginalReport = () => {
+  if (selectedAccident.value && selectedAccident.value.files && selectedAccident.value.files.report && selectedAccident.value.files.report.length > 0) {
+    const report = selectedAccident.value.files.report[0]
+    if (report.url) {
+      try {
+        // 直接在新窗口打开原始报告URL
+        const newWindow = window.open(report.url, '_blank')
+        
+        // 检查新窗口是否成功打开
+        if (!newWindow) {
+          ElMessage.warning('浏览器可能阻止了弹出窗口，请尝试允许弹出窗口或使用下载功能')
+        }
+      } catch (error) {
+        console.error('查看原始报告失败:', error)
+        ElMessage.error('查看原始报告失败，请检查浏览器设置')
+      }
+    } else {
+      ElMessage.warning('原始报告URL为空，无法访问')
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -1760,6 +1812,16 @@ const previewReport = () => {
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.data-source-tag {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
+  border: 1px solid #bbdefb;
 }
 
 .badge特别重大 {

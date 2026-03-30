@@ -29,6 +29,10 @@ coverage/
 perf/*.html
 perf/*.json
 
+# Local storage
+storage/
+backend/storage/
+
 # Python artifacts
 __pycache__/
 *.pyc

@@ -9,11 +9,21 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import Settings
 from app.core.models import Base
 from app.accident_case import models as accident_models
+from app.accident_crawler import models as crawler_models
+from app.accident_crawler import favorite_models as favorite_models
+from app.accident_crawler import regex_models as regex_models
+from app.accident_crawler import attachment_models as attachment_models
+from app.accident_crawler import strategy_models as strategy_models
 
 
 config = context.config
 target_metadata = Base.metadata
 _ = accident_models
+_ = crawler_models
+_ = favorite_models
+_ = regex_models
+_ = attachment_models
+_ = strategy_models
 
 
 def _sqlalchemy_url() -> str:

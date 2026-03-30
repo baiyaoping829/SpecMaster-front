@@ -4,6 +4,12 @@ from fastapi.responses import JSONResponse
 
 from .accident_case.router import router as accident_router
 from .accident_case.legacy_router import router as accident_legacy_router
+from .accident_crawler.router import router as crawler_router
+from .accident_crawler.favorite_router import router as favorite_router
+from .accident_crawler.regex_router import router as regex_router
+from .accident_crawler.engine_router import router as engine_router
+from .accident_crawler.strategy_router import router as strategy_router
+from .accident_crawler.progress_router import router as progress_router
 from .core.config import settings
 from .core.exceptions import ApiError, api_error_handler, http_exception_handler, unhandled_exception_handler, validation_exception_handler
 from .core.minio_client import ensure_bucket
@@ -45,6 +51,12 @@ def create_app() -> FastAPI:
 
     app.include_router(accident_router)
     app.include_router(accident_legacy_router)
+    app.include_router(crawler_router)
+    app.include_router(favorite_router)
+    app.include_router(regex_router)
+    app.include_router(engine_router)
+    app.include_router(strategy_router)
+    app.include_router(progress_router)
     return app
 
 

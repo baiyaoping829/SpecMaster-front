@@ -10,6 +10,22 @@ export default defineConfig({
         target: 'http://localhost:8001',
         changeOrigin: true
       },
+      '/api/favorite': {
+        target: 'http://localhost:8001',
+        changeOrigin: true
+      },
+      '/api/regex': {
+        target: 'http://localhost:8001',
+        changeOrigin: true
+      },
+      '/api/strategy': {
+        target: 'http://localhost:8001',
+        changeOrigin: true
+      },
+      '/api/progress': {
+        target: 'http://localhost:8001',
+        changeOrigin: true
+      },
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true
